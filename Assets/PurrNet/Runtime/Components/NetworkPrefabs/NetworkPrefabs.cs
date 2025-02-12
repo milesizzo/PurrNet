@@ -4,6 +4,8 @@ using UnityEngine;
 using System.IO;
 using PurrNet.Logging;
 using Object = UnityEngine.Object;
+using System.Linq;
+
 #if UNITY_EDITOR
 using PurrNet.Utils;
 using UnityEditor;
@@ -18,45 +20,39 @@ namespace PurrNet
         public bool networkOnly = true;
         public bool poolByDefault;
         public Object folder;
-        public List<PrefabData> prefabs = new List<PrefabData>();
-        
+        public List<UserPrefabData> prefabs = new List<UserPrefabData>();
+
         [Serializable]
-        public struct PrefabData
+        public struct UserPrefabData
         {
             public GameObject prefab;
             public bool pooled;
             public int warmupCount;
         }
 
-        public override IReadOnlyList<PrefabData> allPrefabs => prefabs;
+        private readonly Dictionary<Guid, PrefabData> _prefabDataLookup = new();
 
-        public override bool TryGetPrefab(int id, out GameObject prefab)
+        public override IEnumerable<PrefabData> Prefabs => _prefabDataLookup.Values;
+
+        public override bool TryGetPrefab(Guid prefabId, out GameObject prefab)
         {
-            if (id < 0 || id >= prefabs.Count)
+            if (!_prefabDataLookup.TryGetValue(prefabId, out var prefabData))
             {
                 prefab = null;
                 return false;
             }
-
-            prefab = prefabs[id].prefab;
+            prefab = prefabData.prefab;
             return true;
         }
 
-        public override bool TryGetPrefabData(int id, out PrefabData prefab)
+        public override bool TryGetPrefabData(Guid prefabId, out PrefabData prefab)
         {
-            if (id < 0 || id >= prefabs.Count)
-            {
-                prefab = default;
-                return false;
-            }
-
-            prefab = prefabs[id];
-            return true;
+            return _prefabDataLookup.TryGetValue(prefabId, out prefab);
         }
 
-        public override bool TryGetPrefab(int id, int offset, out GameObject prefab)
+        public override bool TryGetPrefab(Guid prefabId, int offset, out GameObject prefab)
         {
-            if (!TryGetPrefab(id, out var root))
+            if (!TryGetPrefab(prefabId, out var root))
             {
                 prefab = null;
                 return false;
@@ -80,6 +76,20 @@ namespace PurrNet
             return true;
         }
 
+        public override bool TryGetPrefabData(GameObject prefab, out PrefabData o)
+        {
+            foreach (var prefabData in _prefabDataLookup.Values)
+            {
+                if (prefabData.prefab == prefab)
+                {
+                    o = prefabData;
+                    return true;
+                }
+            }
+            o = default;
+            return false;
+        }
+
         static readonly List<NetworkIdentity> _identities = new List<NetworkIdentity>();
 #if UNITY_EDITOR
         private bool _generating;
@@ -89,6 +99,24 @@ namespace PurrNet
         {
             if (autoGenerate)
                 Generate();
+
+            UpdatePrefabDataLookup();
+        }
+
+        private void UpdatePrefabDataLookup()
+        {
+            _prefabDataLookup.Clear();
+            foreach (var prefabData in prefabs)
+            {
+                var prefabId = Guid.NewGuid();
+                _prefabDataLookup.Add(prefabId, new()
+                {
+                    prefabId = prefabId,
+                    prefab = prefabData.prefab,
+                    pooled = prefabData.pooled,
+                    warmupCount = prefabData.warmupCount
+                });
+            }
         }
 
         /// <summary>
@@ -96,7 +124,7 @@ namespace PurrNet
         /// </summary>
         public void Generate()
         {
-        #if UNITY_EDITOR
+#if UNITY_EDITOR
             if (ApplicationContext.isClone)
                 return;
 
@@ -194,7 +222,7 @@ namespace PurrNet
                 });
 
                 EditorUtility.DisplayProgressBar("Getting Network Prefabs", "Removing invalid prefabs...", 0.95f);
-                
+
                 int removed = prefabs.RemoveAll(prefabData => !prefabData.prefab || !File.Exists(AssetDatabase.GetAssetPath(prefabData.prefab)));
 
                 for (int i = 0; i < prefabs.Count; i++)
@@ -213,7 +241,7 @@ namespace PurrNet
                     var foundPath = AssetDatabase.GetAssetPath(foundPrefab);
                     if (!existingPaths.Contains(foundPath))
                     {
-                        prefabs.Add(new PrefabData { prefab = foundPrefab, pooled = poolByDefault, warmupCount = 5});
+                        prefabs.Add(new UserPrefabData { prefab = foundPrefab, pooled = poolByDefault, warmupCount = 5 });
                         added++;
                     }
                 }
@@ -230,7 +258,7 @@ namespace PurrNet
                 EditorUtility.ClearProgressBar();
                 _generating = false;
             }
-        #endif
+#endif
         }
     }
 }

@@ -2,25 +2,33 @@
 
 namespace PurrNet.Modules
 {
+    public enum PrefabPoolType
+    {
+        Scene,
+        Prefab,
+    }
+
     public readonly struct PrefabPieceID : IEquatable<PrefabPieceID>
     {
-        public readonly int prefabId;
+        public readonly Guid prefabId;
         public readonly int componentIndex;
+        public readonly PrefabPoolType poolType;
 
-        public PrefabPieceID(int prefabId, int componentIndex)
+        public PrefabPieceID(Guid prefabId, int componentIndex, PrefabPoolType poolType)
         {
             this.prefabId = prefabId;
             this.componentIndex = componentIndex;
+            this.poolType = poolType;
         }
 
         public override string ToString()
         {
-            return $"PrefabPieceID: {{ prefabId: {prefabId}, componentIndex: {componentIndex} }}";
+            return $"PrefabPieceID: {{ prefabId: {prefabId}, componentIndex: {componentIndex}, poolType: {poolType} }}";
         }
 
         public bool Equals(PrefabPieceID other)
         {
-            return prefabId == other.prefabId && componentIndex == other.componentIndex;
+            return prefabId == other.prefabId && componentIndex == other.componentIndex && poolType == other.poolType;
         }
 
         public override bool Equals(object obj)
@@ -30,7 +38,7 @@ namespace PurrNet.Modules
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(prefabId, componentIndex);
+            return HashCode.Combine(prefabId, componentIndex, poolType);
         }
     }
 }

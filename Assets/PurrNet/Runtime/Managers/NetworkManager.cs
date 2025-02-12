@@ -23,25 +23,25 @@ namespace PurrNet
         /// No flags.
         /// </summary>
         None = 0,
-        
+
         /// <summary>
         /// The server should start in the editor.
         /// </summary>
         Editor = 1,
-        
+
         /// <summary>
         /// The client should start in the editor.
         /// A clone is an editor instance that is not the main editor instance.
         /// For example when you use ParrelSync or other tools that create a clone of the editor.
         /// </summary>
         Clone = 2,
-        
+
         /// <summary>
         /// A client build.
         /// It is a build that doesn't contain the UNITY_SERVER define.
         /// </summary>
         ClientBuild = 4,
-        
+
         /// <summary>
         /// A server build.
         /// It is a build that contains the UNITY_SERVER define.
@@ -49,7 +49,7 @@ namespace PurrNet
         /// </summary>
         ServerBuild = 8
     }
-    
+
     [DefaultExecutionOrder(-999)]
     public sealed partial class NetworkManager : MonoBehaviour
     {
@@ -87,7 +87,7 @@ namespace PurrNet
         [SerializeField] private AuthenticationLayer _authenticator;
         [Tooltip("Number of target ticks per second.")]
         [SerializeField] private int _tickRate = 20;
-        
+
         /// <summary>
         /// The local client connection.
         /// Null if the client is not connected.
@@ -127,25 +127,25 @@ namespace PurrNet
         /// The prefab provider of the network manager.
         /// </summary>
         public IPrefabProvider prefabProvider { get; private set; }
-        
+
         /// <summary>
         /// The visibility rules of the network manager.
         /// </summary>
         public NetworkVisibilityRuleSet visibilityRules => _visibilityRules;
-        
+
         /// <summary>
         /// The original scene of the network manager.
         /// This is the scene the network manager was created in.
         /// </summary>
         public Scene originalScene { get; private set; }
-        
+
         public int originalSceneBuildIndex { get; private set; }
-        
+
         /// <summary>
         /// Occurs when the server connection state changes.
         /// </summary>
         public event Action<ConnectionState> onServerConnectionState;
-        
+
         /// <summary>
         /// Occurs when the client connection state changes.
         /// </summary>
@@ -169,7 +169,7 @@ namespace PurrNet
                     {
                         throw new InvalidOperationException(PurrLogger.FormatMessage("Cannot change transport while it is being used."));
                     }
-                    
+
                     _transport.transport.onConnected -= OnNewConnection;
                     _transport.transport.onDisconnected -= OnLostConnection;
                     _transport.transport.onConnectionState -= OnConnectionState;
@@ -177,7 +177,7 @@ namespace PurrNet
                 }
 
                 _transport = value;
-                
+
                 if (_transport)
                 {
                     _transport.transport.onConnected += OnNewConnection;
@@ -188,12 +188,12 @@ namespace PurrNet
                 }
             }
         }
-        
+
         /// <summary>
         /// Whether the server should automatically start.
         /// </summary>
         public bool shouldAutoStartServer => transport && ShouldStart(_startServerFlags);
-        
+
         /// <summary>
         /// Whether the client should automatically start.
         /// </summary>
@@ -201,7 +201,7 @@ namespace PurrNet
 
         private bool _isCleaningClient;
         private bool _isCleaningServer;
-        
+
         /// <summary>
         /// The state of the server connection.
         /// This is based on the transport listener state.
@@ -232,12 +232,12 @@ namespace PurrNet
         /// Whether the network manager is a server.
         /// </summary>
         public bool isServer => _transport && _transport.transport.listenerState == ConnectionState.Connected;
-        
+
         /// <summary>
         /// Whether the network manager is a client.
         /// </summary>
         public bool isClient => _transport && _transport.transport.clientState == ConnectionState.Connected;
-        
+
         /// <summary>
         /// Whether the network manager is offline.
         /// Not a server or a client.
@@ -255,31 +255,31 @@ namespace PurrNet
         /// This is true only if the server and client are connected and ready.
         /// </summary>
         public bool isHost => isServer && isClient;
-        
+
         /// <summary>
         /// Whether the network manager is a server only.
         /// </summary>
         public bool isServerOnly => isServer && !isClient;
-        
+
         public bool pendingHost => clientState != ConnectionState.Disconnected && serverState != ConnectionState.Disconnected;
-        
+
         public bool isPlannedServerOnly => ShouldStart(_startServerFlags) && !ShouldStart(_startClientFlags);
-        
+
         /// <summary>
         /// Whether the network manager is a client only.
         /// </summary>
         public bool isClientOnly => !isServer && isClient;
-        
+
         /// <summary>
         /// The network rules of the network manager.
         /// </summary>
         public NetworkRules networkRules => _networkRules;
-        
+
         private ModulesCollection _serverModules;
         private ModulesCollection _clientModules;
-        
+
         private bool _subscribed;
-        
+
         /// <summary>
         /// Sets the main instance of the network manager.
         /// This is used for convinience but also for static RPCs and other static functionality.
@@ -311,52 +311,33 @@ namespace PurrNet
         /// This needs to be ready before the object is spawned.
         /// </summary>
         /// <param name="instance"></param>
-        /// <param name="pid">The prefab index in the network prefabs list.</param>
+        /// <param name="prefabId">The unique prefab identifier.</param>
         /// <param name="shouldBePooled">Whether the object should be pooled.</param>
-        public static void SetupPrefabInfo(GameObject instance, int pid, bool shouldBePooled)
+        public static void SetupPrefabInfo(GameObject instance, PrefabData prefabData)
         {
             var children = ListPool<NetworkIdentity>.Instantiate();
-            
+
             if (!instance.GetComponent<NetworkIdentity>())
                 instance.AddComponent<NetworkIdentity>();
-            
+
             instance.GetComponentsInChildren(true, children);
 
             for (var i = 0; i < children.Count; i++)
             {
                 var child = children[i];
                 var trs = child.transform;
-                
+
                 var first = trs.GetComponent<NetworkIdentity>();
 
                 child.PreparePrefabInfo(
-                    pid,
+                    prefabData.prefabId,
                     child == first ? i : first.componentIndex,
-                    shouldBePooled,
+                    prefabData.pooled,
                     false
                 );
             }
 
             ListPool<NetworkIdentity>.Destroy(children);
-        }
-        
-        public bool TryGetPrefabData(GameObject prefab, out NetworkPrefabs.PrefabData o, out int pid)
-        {
-            var prefabs = _networkPrefabs.prefabs;
-            for (var i = 0; i < prefabs.Count; i++)
-            {
-                var data = prefabs[i];
-                if (data.prefab == prefab)
-                {
-                    o = data;
-                    pid = i;
-                    return true;
-                }
-            }
-            
-            o = default;
-            pid = -1;
-            return false;
         }
 
         static void RefreshHashes()
@@ -366,29 +347,29 @@ namespace PurrNet
 
             if (hashes == null)
                 return;
-            
+
             Hasher.ClearState();
 
             var lines = hashes.text.Split('\n');
-            
+
             for (var i = 0; i < lines.Length; i++)
             {
                 var line = lines[i];
                 if (string.IsNullOrEmpty(line))
                     continue;
-                
+
                 var parts = line.Split(';');
                 if (parts.Length != 2)
                     continue;
-                
+
                 var fullTypeName = parts[0];
                 var hash = uint.Parse(parts[1]);
-                
+
                 var type = Type.GetType(fullTypeName);
 
                 if (type == null)
                     continue;
-                
+
                 Hasher.Load(type, hash);
             }
 
@@ -404,11 +385,11 @@ namespace PurrNet
                     Destroy(gameObject);
                     return;
                 }
-                
+
                 Destroy(this);
                 return;
             }
-            
+
             if (!networkRules)
                 throw new InvalidOperationException(PurrLogger.FormatMessage("NetworkRules is not set (null)."));
 
@@ -422,7 +403,7 @@ namespace PurrNet
                 _visibilityRules.name = "Copy of " + ogName;
                 _visibilityRules.Setup(this);
             }
-            
+
             main = this;
             RefreshHashes();
 
@@ -440,7 +421,7 @@ namespace PurrNet
 
             if (!_subscribed)
                 transport = _transport;
-            
+
             _serverModules = new ModulesCollection(this, true);
             _clientModules = new ModulesCollection(this, false);
 
@@ -467,7 +448,7 @@ namespace PurrNet
         {
             if (TryGetModule(out T module, asServer))
                 return module;
-            
+
             throw new InvalidOperationException(PurrLogger.FormatMessage($"Module {typeof(T).Name} not found - asServer : {asServer}."));
         }
 
@@ -482,7 +463,7 @@ namespace PurrNet
                 _serverModules.TryGetModule(out module) :
                 _clientModules.TryGetModule(out module);
         }
-        
+
         /// <summary>
         /// Gets all the objects owned by the given player.
         /// This creates a new list every time it's called.
@@ -493,7 +474,7 @@ namespace PurrNet
             var ownershipModule = GetModule<GlobalOwnershipModule>(asServer);
             return ownershipModule.GetAllPlayerOwnedIds(player);
         }
-        
+
         /// <summary>
         /// Gets all the objects owned by the given player.
         /// Adds the result to the given list.
@@ -503,18 +484,18 @@ namespace PurrNet
             var ownershipModule = GetModule<GlobalOwnershipModule>(asServer);
             ownershipModule.GetAllPlayerOwnedIds(player, result);
         }
-        
+
         /// <summary>
         /// Gets the current player count.
         /// </summary>
         public int playerCount => playerModule?.players.Count ?? 0;
-        
+
         /// <summary>
         /// Gets the current player list.
         /// This will be update every time a player joins or leaves.
         /// </summary>
         public IReadOnlyList<PlayerID> players => GetModule<PlayersManager>(isServer).players;
-        
+
         /// <summary>
         /// Enumerates all the objects owned by the given player.
         /// </summary>
@@ -526,7 +507,7 @@ namespace PurrNet
             var ownershipModule = GetModule<GlobalOwnershipModule>(asServer);
             return ownershipModule.EnumerateAllPlayerOwnedIds(player);
         }
-        
+
         /// <summary>
         /// Adds a visibility rule to the rule set.
         /// </summary>
@@ -545,35 +526,35 @@ namespace PurrNet
         {
             _visibilityRules.RemoveRule(rule);
         }
-        
+
         /// <summary>
         /// The scene module of the network manager.
         /// Defaults to the server scene module if the server is active.
         /// Otherwise it defaults to the client scene module.
         /// </summary>
         public ScenesModule sceneModule => _serverSceneModule ?? _clientSceneModule;
-        
+
         /// <summary>
         /// The players manager of the network manager.
         /// Defaults to the server players manager if the server is active.
         /// Otherwise it defaults to the client players manager.
         /// </summary>
         public PlayersManager playerModule => _serverPlayersManager ?? _clientPlayersManager;
-        
+
         /// <summary>
         /// The tick manager of the network manager.
         /// Defaults to the server tick manager if the server is active.
         /// Otherwise it defaults to the client tick manager.
         /// </summary>
         public TickManager tickModule => _serverTickManager ?? _clientTickManager;
-        
+
         /// <summary>
         /// The players broadcaster of the network manager.
         /// Defaults to the server players broadcaster if the server is active.
         /// Otherwise it defaults to the client players broadcaster.
         /// </summary>
         public PlayersBroadcaster broadcastModule => _serverPlayersBroadcast ?? _clientPlayersBroadcast;
-        
+
         /// <summary>
         /// The scene players module of the network manager.
         /// Defaults to the server scene players module if the server is active.
@@ -591,19 +572,19 @@ namespace PurrNet
 
         private ScenesModule _clientSceneModule;
         private ScenesModule _serverSceneModule;
-        
+
         private PlayersManager _clientPlayersManager;
         private PlayersManager _serverPlayersManager;
-        
+
         private TickManager _clientTickManager;
         private TickManager _serverTickManager;
-        
+
         private PlayersBroadcaster _clientPlayersBroadcast;
         private PlayersBroadcaster _serverPlayersBroadcast;
-        
+
         private ScenePlayersModule _clientScenePlayersModule;
         private ScenePlayersModule _serverScenePlayersModule;
-        
+
         public delegate void OnTickDelegate(bool asServer);
 
         /// <summary>
@@ -612,14 +593,14 @@ namespace PurrNet
         /// The parameter is true if the network manager is a server.
         /// </summary>
         public event OnTickDelegate onPreTick;
-        
+
         /// <summary>
         /// This event is triggered on tick.
         /// It may be triggered multiple times if you are both a server and a client.
         /// The parameter is true if the network manager is a server.
         /// </summary>
         public event OnTickDelegate onTick;
-        
+
         /// <summary>
         /// This event is triggered after the tick.
         /// It may be triggered multiple times if you are both a server and a client.
@@ -632,58 +613,58 @@ namespace PurrNet
         /// Note that before a player joins it has a connection step.
         /// </summary>
         public event OnPlayerJoinedEvent onPlayerJoined;
-        
+
         void OnPlayerJoined(PlayerID player, bool isReconnect, bool asServer) => onPlayerJoined?.Invoke(player, isReconnect, asServer);
 
         /// <summary>
         /// This event is triggered when a player leaves.
         /// </summary>
         public event OnPlayerLeftEvent onPlayerLeft;
-        
+
         void OnPlayerLeft(PlayerID player, bool asServer) => onPlayerLeft?.Invoke(player, asServer);
-        
+
         /// <summary>
         /// This event is triggered when the local player receives an ID.
         /// </summary>
         public event OnPlayerEvent onLocalPlayerReceivedID;
-        
+
         void OnLocalPlayerReceivedID(PlayerID player) => onLocalPlayerReceivedID?.Invoke(player);
-        
+
         /// <summary>
         /// This event is triggered when a player joins the scene.
         /// It might not be triggered if the user reconnects but was already in the scene due to persistence.
         /// For that use onPlayerLoadedScene instead.
         /// </summary>
         public event OnPlayerSceneEvent onPlayerJoinedScene;
-        
+
         void OnPlayerJoinedScene(PlayerID player, SceneID scene, bool asServer) => onPlayerJoinedScene?.Invoke(player, scene, asServer);
-        
+
         /// <summary>
         /// This event is triggered when a player loads the scene.
         /// </summary>
         public event OnPlayerSceneEvent onPlayerLoadedScene;
-        
+
         void OnPlayerLoadedScene(PlayerID player, SceneID scene, bool asServer) => onPlayerLoadedScene?.Invoke(player, scene, asServer);
-        
+
         /// <summary>
         /// This event is triggered when a player unloads the scene.
         /// Or when they leave the server and had it loaded.
         /// </summary>
         public event OnPlayerSceneEvent onPlayerUnloadedScene;
-        
+
         void OnPlayerUnloadedScene(PlayerID player, SceneID scene, bool asServer) => onPlayerUnloadedScene?.Invoke(player, scene, asServer);
-        
+
         /// <summary>
         /// This event is triggered when a player leaves the scene.
         /// This might not be triggered if the network rules keep the player in the scene.
         /// In that case, you want to use onPlayerUnloadedScene.
         /// </summary>
         public event OnPlayerSceneEvent onPlayerLeftScene;
-        
+
         void OnPlayerLeftScene(PlayerID player, SceneID scene, bool asServer) => onPlayerLeftScene?.Invoke(player, scene, asServer);
 
         private bool _isServerTicking;
-        
+
         internal void RegisterModules(ModulesCollection modules, bool asServer)
         {
             var tickManager = new TickManager(_tickRate, this);
@@ -696,10 +677,10 @@ namespace PurrNet
                     _serverTickManager.onTick -= OnServerTick;
                     _serverTickManager.onPostTick -= OnServerPostTick;
                 }
-                
+
                 _serverTickManager = tickManager;
                 _isServerTicking = true;
-                
+
                 _serverTickManager.onPreTick += OnServerPreTick;
                 _serverTickManager.onTick += OnServerTick;
                 _serverTickManager.onPostTick += OnServerPostTick;
@@ -712,7 +693,7 @@ namespace PurrNet
                     _clientTickManager.onTick -= OnClientTick;
                     _clientTickManager.onPostTick -= OnClientPostTick;
                 }
-                
+
                 _clientTickManager = tickManager;
                 _clientTickManager.onPreTick += OnClientPreTick;
                 _clientTickManager.onTick += OnClientTick;
@@ -732,9 +713,9 @@ namespace PurrNet
                     _serverPlayersManager.onPlayerLeft -= OnPlayerLeft;
                     _serverPlayersManager.onLocalPlayerReceivedID -= OnLocalPlayerReceivedID;
                 }
-                
+
                 _serverPlayersManager = playersManager;
-                
+
                 _serverPlayersManager.onPlayerJoined += OnPlayerJoined;
                 _serverPlayersManager.onPlayerLeft += OnPlayerLeft;
                 _serverPlayersManager.onLocalPlayerReceivedID += OnLocalPlayerReceivedID;
@@ -747,22 +728,22 @@ namespace PurrNet
                     _clientPlayersManager.onPlayerLeft -= OnPlayerLeft;
                     _clientPlayersManager.onLocalPlayerReceivedID -= OnLocalPlayerReceivedID;
                 }
-                
+
                 _clientPlayersManager = playersManager;
-                
+
                 _clientPlayersManager.onPlayerJoined += OnPlayerJoined;
                 _clientPlayersManager.onPlayerLeft += OnPlayerLeft;
                 _clientPlayersManager.onLocalPlayerReceivedID += OnLocalPlayerReceivedID;
             }
-            
+
             var playersBroadcast = new PlayersBroadcaster(connBroadcaster, playersManager);
-            
+
             if (asServer)
                 _serverPlayersBroadcast = playersBroadcast;
             else _clientPlayersBroadcast = playersBroadcast;
 
             var scenesModule = new ScenesModule(this, playersManager);
-            
+
             if (asServer)
                  _serverSceneModule = scenesModule;
             else _clientSceneModule = scenesModule;
@@ -778,9 +759,9 @@ namespace PurrNet
                     _serverScenePlayersModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
                     _serverScenePlayersModule.onPlayerLeftScene -= OnPlayerLeftScene;
                 }
-                
+
                 _serverScenePlayersModule = scenePlayers;
-                
+
                 _serverScenePlayersModule.onPlayerJoinedScene += OnPlayerJoinedScene;
                 _serverScenePlayersModule.onPlayerLoadedScene += OnPlayerLoadedScene;
                 _serverScenePlayersModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
@@ -795,25 +776,25 @@ namespace PurrNet
                     _clientScenePlayersModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
                     _clientScenePlayersModule.onPlayerLeftScene -= OnPlayerLeftScene;
                 }
-                
+
                 _clientScenePlayersModule = scenePlayers;
-                
+
                 _clientScenePlayersModule.onPlayerJoinedScene += OnPlayerJoinedScene;
                 _clientScenePlayersModule.onPlayerLoadedScene += OnPlayerLoadedScene;
                 _clientScenePlayersModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
                 _clientScenePlayersModule.onPlayerLeftScene += OnPlayerLeftScene;
             }
-            
+
             scenesModule.SetScenePlayers(scenePlayers);
             playersManager.SetBroadcaster(playersBroadcast);
-            
+
             modules.AddModule(playersManager);
             modules.AddModule(playersBroadcast);
             modules.AddModule(tickManager);
             modules.AddModule(connBroadcaster);
             modules.AddModule(authModule);
             modules.AddModule(networkCookies);
-            
+
             modules.AddModule(scenesModule);
             modules.AddModule(scenePlayers);
 
@@ -862,10 +843,10 @@ namespace PurrNet
         {
             bool shouldStartServer = transport && ShouldStart(_startServerFlags);
             bool shouldStartClient = transport && ShouldStart(_startClientFlags);
-            
+
             if (shouldStartServer)
                 StartServer();
-            
+
             if (shouldStartClient)
                 StartClient();
         }
@@ -874,8 +855,8 @@ namespace PurrNet
         {
             _serverModules.TriggerOnUpdate();
             _clientModules.TriggerOnUpdate();
-            
-            if (_transport) 
+
+            if (_transport)
                 _transport.transport.UnityUpdate(Time.deltaTime);
         }
 
@@ -883,22 +864,22 @@ namespace PurrNet
         {
             bool serverConnected = serverState == ConnectionState.Connected;
             bool clientConnected = clientState == ConnectionState.Connected;
-            
+
             if (serverConnected)
                 _serverModules.TriggerOnPreFixedUpdate();
-            
+
             if (clientConnected)
                 _clientModules.TriggerOnPreFixedUpdate();
-            
-            if (_transport) 
+
+            if (_transport)
                 _transport.transport.TickUpdate(tickModule.tickDelta);
-            
+
             if (serverConnected)
                 _serverModules.TriggerOnFixedUpdate();
-            
+
             if (clientConnected)
                 _clientModules.TriggerOnFixedUpdate();
-            
+
             if (_isCleaningClient && _clientModules.Cleanup())
             {
                 _clientModules.UnregisterModules();
@@ -919,7 +900,7 @@ namespace PurrNet
             {
                 StopClient();
                 StopServer();
-                
+
                 if (clientState != ConnectionState.Disconnected)
                     _clientModules.UnregisterModules();
 
@@ -944,7 +925,7 @@ namespace PurrNet
                 return id == sceneID;
             return false;
         }
-        
+
         /// <summary>
         /// Tries to get the scene ID of the given scene.
         /// </summary>
@@ -955,7 +936,7 @@ namespace PurrNet
         {
             return sceneModule.TryGetSceneID(scene, out sceneID);
         }
-        
+
         /// <summary>
         /// Tries to get the scene of the given scene ID.
         /// </summary>
@@ -969,11 +950,11 @@ namespace PurrNet
                 scene = state.scene;
                 return true;
             }
-            
+
             scene = default;
             return false;
         }
-        
+
         /// <summary>
         /// Returns all the scenes of a given player
         /// </summary>
@@ -992,7 +973,7 @@ namespace PurrNet
 
             return false;
         }
-        
+
         /// <summary>
         /// Tries to get the scene state of the given scene ID.
         /// </summary>
@@ -1014,7 +995,7 @@ namespace PurrNet
                 PurrLogger.Throw<InvalidOperationException>("Transport is not set (null).");
             _transport.StartServer(this);
         }
-        
+
         /// <summary>
         /// Internal method to register the server modules.
         /// Avoid calling this method directly if you're not sure what you're doing.
@@ -1026,7 +1007,7 @@ namespace PurrNet
             _isSubscribedServer = true;
             TriggerSubscribeEvents(true);
         }
-        
+
         /// <summary>
         /// Internal method to register the client modules.
         /// Avoid calling this method directly if you're not sure what you're doing.
@@ -1037,28 +1018,28 @@ namespace PurrNet
             _isSubscribedClient = true;
             TriggerSubscribeEvents(false);
         }
-        
+
         bool _isSubscribedClient;
         bool _isSubscribedServer;
-        
+
         public void InternalUnregisterServerModules()
         {
             if (!_isSubscribedServer)
                 return;
-            
+
             _isSubscribedServer = false;
             TriggerUnsubscribeEvents(true);
         }
-        
+
         public void InternalUnregisterClientModules()
         {
             if (!_isSubscribedClient)
                 return;
-            
+
             _isSubscribedClient = false;
             TriggerUnsubscribeEvents(false);
         }
-        
+
         /// <summary>
         /// Starts the client.
         /// This will start the transport client.
@@ -1123,7 +1104,7 @@ namespace PurrNet
                 }
             }
         }
-        
+
         /// <summary>
         /// Tries to get the module of the given type.
         /// </summary>
@@ -1133,8 +1114,8 @@ namespace PurrNet
         /// <returns>Whether the module was found.</returns>
         public bool TryGetModule<T>(bool asServer, out T module) where T : INetworkModule
         {
-            return asServer ? 
-                _serverModules.TryGetModule(out module) : 
+            return asServer ?
+                _serverModules.TryGetModule(out module) :
                 _clientModules.TryGetModule(out module);
         }
 
@@ -1174,7 +1155,7 @@ namespace PurrNet
         {
             if (!entry)
                 return;
-            
+
             if (TryGetModule<HierarchyFactory>(isServer, out var factory) &&
                 TryGetSceneID(entry.scene, out var sceneID) &&
                 factory.TryGetHierarchy(sceneID, out var hierarchy))

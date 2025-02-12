@@ -18,27 +18,27 @@ namespace PurrNet
     {
         [SerializeField, HideInInspector]
         private bool _isSetup;
-        
+
         [SerializeField, HideInInspector]
-        private int _prefabId = int.MinValue;
+        private Guid _prefabId = Guid.Empty;
 
         [SerializeField, HideInInspector]
         private int _componentIndex = int.MinValue;
 
-        [SerializeField, HideInInspector] 
+        [SerializeField, HideInInspector]
         private bool _shouldBePooled;
 
-        [SerializeField, HideInInspector] 
+        [SerializeField, HideInInspector]
         private NetworkIdentity _parent;
-        
-        [SerializeField, HideInInspector] 
+
+        [SerializeField, HideInInspector]
         private int[] _invertedPathToNearestParent;
-        
-        [SerializeField, HideInInspector] 
+
+        [SerializeField, HideInInspector]
         private List<NetworkIdentity> _directChildren;
-        
+
         internal Transform defaultParent { get; private set; }
-        
+
         public int[] invertedPathToNearestParent
         {
             get => _invertedPathToNearestParent;
@@ -46,7 +46,7 @@ namespace PurrNet
         }
 
         public IReadOnlyList<NetworkIdentity> directChildren => _directChildren;
-        
+
         /// <summary>
         /// The nearest network parent of this object.
         /// This can differ from transform.parent.
@@ -65,38 +65,38 @@ namespace PurrNet
                 onParentChanged?.Invoke(oldParent, value);
             }
         }
-        
+
         /// <summary>
         /// Called when the network parent of this object changes.
         /// This will be the closest parent with a NetworkIdentity.
         /// </summary>
         public event NidParentChanged onParentChanged;
 
-        public int prefabId => _prefabId;
-        
+        public Guid prefabId => _prefabId;
+
         public int componentIndex => _componentIndex;
-        
+
         public bool shouldBePooled => _shouldBePooled;
-        
+
         public bool isSetup => _isSetup;
-        
-        public void PreparePrefabInfo(int prefabId, int componentIndex, bool shouldBePooled, bool isSceneObject)
+
+        public void PreparePrefabInfo(Guid prefabId, int componentIndex, bool shouldBePooled, bool isSceneObject)
         {
             _isSetup = true;
-            
+
             if (isSceneObject)
                 defaultParent = transform.parent;
-            
+
             this.isSceneObject = isSceneObject;
 
             this._prefabId = prefabId;
             this._componentIndex = componentIndex;
             this._shouldBePooled = shouldBePooled;
-            
+
             parent = GetNearestParent();
 
             RecalculateNearestPath();
-            
+
             var firstIdentity = GetComponent<NetworkIdentity>();
 
             if (firstIdentity != this)
@@ -114,19 +114,19 @@ namespace PurrNet
             for (int i = 0; i < dChildren.Count; i++)
                 _directChildren.Add(dChildren[i].identity);
         }
-        
+
         internal void ClearDirectChildren()
         {
             _directChildren.Clear();
         }
-        
+
         internal void AddDirectChild(NetworkIdentity identity)
         {
             if (_directChildren.Contains(identity))
                 return;
             _directChildren.Add(identity);
         }
-        
+
         internal void RemoveDirectChild(NetworkIdentity identity)
         {
             _directChildren.Remove(identity);
@@ -142,7 +142,7 @@ namespace PurrNet
                     _invertedPathToNearestParent = new int[invPath.Count];
                 else if (_invertedPathToNearestParent.Length != invPath.Count)
                     _invertedPathToNearestParent = new int[invPath.Count];
-                
+
                 for (int i = 0; i < invPath.Count; i++)
                     _invertedPathToNearestParent[i] = invPath[i];
             }
@@ -163,7 +163,7 @@ namespace PurrNet
             {
                 if (current.TryGetComponent(out NetworkIdentity identity))
                     return identity;
-                
+
                 current = current.parent;
             }
 
@@ -174,19 +174,19 @@ namespace PurrNet
         /// Network id of this object. Holds more information than the ObjectId
         /// </summary>
         public NetworkID? id => _idServer ?? _idClient;
-        
+
         public NetworkID? GetNetworkID(bool asServer) => asServer ? _idServer : _idClient;
-        
+
         /// <summary>
         /// Unique ObjectId of this object
         /// </summary>
         public uint objectId => id?.id ?? 0;
-        
+
         /// <summary>
         /// Scene id of this object.
         /// </summary>
         public SceneID sceneId { get; private set; }
-        
+
         /// <summary>
         /// Is spawned over the network.
         /// </summary>
@@ -195,18 +195,18 @@ namespace PurrNet
         public bool isSceneObject { get; private set; }
 
         public bool isServer => isSpawned && networkManager.isServer;
-        
+
         [UsedByIL]
         public bool isServerOnly => isSpawned && networkManager.isServerOnly;
-        
+
         public bool isClient => isSpawned && networkManager.isClient;
-        
+
         public bool isHost => isSpawned && networkManager.isHost;
-        
+
         public bool isOwner => isSpawned && localPlayer.HasValue && owner == localPlayer;
-        
+
         public bool hasOwner => owner.HasValue;
-        
+
         Queue<Action> _onSpawnedQueue;
 
         /// <summary>
@@ -216,7 +216,7 @@ namespace PurrNet
         /// </summary>
         [UsedImplicitly]
         public bool isController => isSpawned && (hasConnectedOwner ? isOwner : isServer);
-        
+
         /// <summary>
         /// Returns if you can control this object.
         /// If ownerHasAuthority is true, it will return true if you are the owner.
@@ -227,14 +227,14 @@ namespace PurrNet
         /// <returns>Can you control this identity</returns>
         [UsedImplicitly]
         public bool IsController(bool ownerHasAuthority) => ownerHasAuthority ? isController : isServer;
-        
+
         public bool IsController(bool asServer, bool ownerHasAuthority) => ownerHasAuthority ? isController : asServer;
-        
+
         public bool hasConnectedOwner => networkManager && owner.HasValue && networkManager.TryGetModule<PlayersManager>(isServer, out var module) && module.IsPlayerConnected(owner.Value);
 
         internal PlayerID? internalOwnerServer;
         internal PlayerID? internalOwnerClient;
-        
+
         private TickManager _serverTickManager;
         private TickManager _clientTickManager;
 
@@ -243,19 +243,19 @@ namespace PurrNet
 
         private NetworkID? _idServer;
         private NetworkID? _idClient;
-        
+
         /// <summary>
         /// Returns the owner of this object.
         /// It will return the owner of the closest parent object.
         /// If you can, cache this value for performance.
         /// </summary>
         public PlayerID? owner => internalOwnerServer ?? internalOwnerClient;
-        
+
         public NetworkManager networkManager { get; private set; }
-        
+
         private HierarchyV2 _clientHierarchy;
         private HierarchyV2 _serverHierarchy;
-        
+
         private PlayerID? _localPlayer;
 
         /// <summary>
@@ -273,29 +273,29 @@ namespace PurrNet
                     _localPlayer = players.localPlayerId;
                     return _localPlayer;
                 }
-                
+
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Returns the local player if it exists.
         /// Defaults to default(PlayerID) if it doesn't exist.
         /// </summary>
         [UsedByIL]
         public PlayerID localPlayerForced => localPlayer ?? default;
-        
+
         private readonly PurrHashSet<PlayerID> _observers = new PurrHashSet<PlayerID>(4);
-        
+
         public IReadonlyHashSet<PlayerID> observers => _observers;
-        
+
         [UsedImplicitly]
         public void QueueOnSpawned(Action action)
         {
             _onSpawnedQueue ??= new Queue<Action>();
             _onSpawnedQueue.Enqueue(action);
         }
-        
+
         public NetworkIdentity GetRootIdentity()
         {
             var lastKnown = gameObject.GetComponent<NetworkIdentity>();
@@ -306,35 +306,35 @@ namespace PurrNet
                 lastKnown = currentParent;
                 currentParent = currentParent.parent;
             }
-            
+
             return lastKnown;
         }
 
         private IServerSceneEvents _serverSceneEvents;
         private int onTickCount;
         private ITick _ticker;
-        
+
         private readonly List<ITick> _tickables = new List<ITick>();
-        
+
         [ContextMenu("PurrNet/Take Ownership")]
         private void TakeOwnership()
         {
             GiveOwnership(localPlayer);
         }
-        
+
         [ContextMenu("PurrNet/Print Prototype")]
         private void PrintPrototype()
         {
             using var prototype = HierarchyPool.GetFullPrototype(transform);
             PurrLogger.Log(prototype.ToString());
         }
-        
+
         [ContextMenu("PurrNet/Duplicate Prototype")]
         private void DuplicatePrototype()
         {
             Duplicate();
         }
-        
+
         [ContextMenu("PurrNet/Spawn")]
         private void SpawnMenu()
         {
@@ -354,22 +354,22 @@ namespace PurrNet
                 hierarchy.Spawn(go);
                 return go;
             }
-            
+
             return null;
         }
-                
+
         [ContextMenu("PurrNet/Destroy GameObject")]
         private void DeleteGameObject()
         {
             Destroy(gameObject);
         }
-        
+
         private void InternalOnSpawn(bool asServer)
         {
             // ReSharper disable once SuspiciousTypeConversion.Global
             if (_ticker == null && this is ITick ticker)
                 _ticker = ticker;
-            
+
             if (_ticker != null || _tickables.Count > 0)
             {
                 if (asServer)
@@ -383,7 +383,7 @@ namespace PurrNet
                     _clientTickManager.onTick += ClientTick;
                 }
             }
-            
+
             if (networkManager.TryGetModule<PlayersManager>(asServer, out var players))
             {
                 // ReSharper disable once SuspiciousTypeConversion.Global
@@ -392,7 +392,7 @@ namespace PurrNet
                     players.onPlayerJoined += events.OnPlayerConnected;
                     players.onPlayerLeft += events.OnPlayerDisconnected;
                 }
-                
+
                 if (networkManager.TryGetModule<ScenePlayersModule>(asServer, out var scenePlayers))
                 {
                     // ReSharper disable once SuspiciousTypeConversion.Global
@@ -405,7 +405,7 @@ namespace PurrNet
                 }
             }
         }
-        
+
         private void InternalOnDespawn(bool asServer)
         {
             if (_ticker != null || _tickables.Count > 0)
@@ -423,7 +423,7 @@ namespace PurrNet
             }
 
             if (!networkManager.TryGetModule<PlayersManager>(asServer, out var players)) return;
-            
+
             // ReSharper disable once SuspiciousTypeConversion.Global
             if (this is IPlayerEvents events)
             {
@@ -432,25 +432,25 @@ namespace PurrNet
             }
 
             if (!networkManager.TryGetModule<ScenePlayersModule>(asServer, out var scenePlayers)) return;
-            
+
             if (_serverSceneEvents == null) return;
-            
+
             scenePlayers.onPlayerLoadedScene -= OnServerJoinedScene;
             scenePlayers.onPlayerUnloadedScene -= OnServerLeftScene;
         }
-        
+
         void OnServerJoinedScene(PlayerID player, SceneID scene, bool asServer)
         {
             if (scene == sceneId)
                 _serverSceneEvents?.OnPlayerLoadedScene(player);
         }
-        
+
         void OnServerLeftScene(PlayerID player, SceneID scene, bool asServer)
         {
             if (scene == sceneId)
                 _serverSceneEvents?.OnPlayerUnloadedScene(player);
         }
-        
+
         private void ClientTick()
         {
             _ticker?.OnTick(_clientTickManager.tickDelta);
@@ -485,27 +485,27 @@ namespace PurrNet
         /// This is only called once even if in host mode.
         /// </summary>
         protected virtual void OnSpawned() { }
-        
+
         /// <summary>
         /// Called when this object is spawned but before any other data is received.
         /// At this point you might be missing ownership data, module data, etc.
         /// This is only called once even if in host mode.
         /// </summary>
         protected virtual void OnEarlySpawn() { }
-                
+
         /// <summary>
         /// Called when this object is spawned but before any other data is received.
         /// At this point you might be missing ownership data, module data, etc.
         /// This is called twice in host mode, once for the server and once for the client.
         /// </summary>
         protected virtual void OnEarlySpawn(bool asServer) { }
-        
+
         /// <summary>
         /// Called when this object is de-spawned.
         /// This is only called once even if in host mode.
         /// </summary>
         protected virtual void OnDespawned() { }
-        
+
         /// <summary>
         /// Called when this object is spawned.
         /// This might be called twice times in host mode.
@@ -513,13 +513,13 @@ namespace PurrNet
         /// </summary>
         /// <param name="asServer">Is this on the server</param>
         protected virtual void OnSpawned(bool asServer) { }
-        
+
         /// <summary>
         /// Called before the NetworkModules are initialized.
         /// You can use this to update their values before they are networked.
         /// </summary>
         protected virtual void OnInitializeModules() { }
-        
+
         /// <summary>
         /// Called when this object is de-spawned.
         /// This might be called twice times in host mode.
@@ -549,20 +549,20 @@ namespace PurrNet
         /// </summary>
         /// <param name="ownerId">The current owner id</param>
         protected virtual void OnOwnerReconnected(PlayerID ownerId) { }
-        
+
         /// <summary>
         /// Called when an observer is added.
         /// Server only.
         /// </summary>
         /// <param name="player">The observer player id</param>
         protected virtual void OnObserverAdded(PlayerID player) { }
-        
+
         /// <summary>
         /// Same as OnObserverAdded but called after all other observers have been added.
         /// </summary>
         /// <param name="player">The observer player id</param>
         protected virtual void OnLateObserverAdded(PlayerID player) { }
-        
+
         /// <summary>
         /// Called when an observer is removed.
         /// Server only.
@@ -593,7 +593,7 @@ namespace PurrNet
         /// Only available when spawned.
         /// </summary>
         public int layer { get; private set; }
-        
+
         public bool isInPool { get; private set; }
 
         [ContextMenu("PurrNet/Despawn")]
@@ -608,24 +608,24 @@ namespace PurrNet
             else if (!isInPool)
                 UnityProxy.DestroyDirectly(gameObject);
         }
-        
+
         /// <summary>
         /// Called when this object is put back into the pool.
         /// Use this to reset any values for the next spawn.
         /// </summary>
         protected virtual void OnPoolReset() { }
-        
+
         internal void ResetIdentity()
         {
             OnPoolReset();
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnPoolReset();
-            
+
             // notify parent
             if (parent && parent.isSpawned)
                 parent.OnChildDespawned(this);
-            
+
             // reset all values
             TriggerDespawnEvent(false);
             TriggerDespawnEvent(true);
@@ -678,23 +678,23 @@ namespace PurrNet
                 _clientHierarchy = hierarchy;
                 internalOwnerClient = null;
             }
-            
+
             if (!wasAlreadySpawned)
             {
                 _modules.Clear();
                 _externalModulesView.Clear();
                 _moduleId = 0;
-                
+
                 OnInitializeModules();
                 CallInitMethods();
 
                 foreach (var module in _externalModulesView)
                     module.OnInitializeModules();
-                
+
                 _tickables.Clear();
                 RegisterEvents();
             }
-            
+
             if (_visitiblityRules && !_visitiblityRules.isInitialized)
             {
                 _visitiblityRules = Instantiate(_visitiblityRules);
@@ -703,7 +703,7 @@ namespace PurrNet
         }
 
         private PlayerID? _pendingOwnershipRequest;
-        
+
         /// <summary>
         /// Gives ownership of this object to the player.
         /// </summary>
@@ -730,15 +730,15 @@ namespace PurrNet
             if (!manager)
             {
                 manager = NetworkManager.main;
-                
+
                 if (!manager)
                 {
                     PurrLogger.LogError("Failed to spawn object. No NetworkManager found.", this);
                     return;
                 }
             }
-            
-            if (manager.TryGetModule(manager.isServer, out HierarchyFactory module) && 
+
+            if (manager.TryGetModule(manager.isServer, out HierarchyFactory module) &&
                 module.TryGetHierarchy(gameObject.scene, out var hierarchy))
             {
                 hierarchy.Spawn(gameObject);
@@ -760,17 +760,17 @@ namespace PurrNet
                 identity.Spawn(manager);
                 return;
             }
-            
+
             using var identities = new DisposableList<TransformIdentityPair>(16);
             HierarchyPool.GetDirectChildren(go.transform, identities);
-            
+
             for (var i = 0; i < identities.Count; i++)
             {
                 var pair = identities[i];
                 pair.identity.Spawn(manager);
             }
         }
-        
+
         [UsedImplicitly]
         public void GiveOwnership(PlayerID? player, bool silent = false)
         {
@@ -779,10 +779,10 @@ namespace PurrNet
                 RemoveOwnership();
                 return;
             }
-            
+
             GiveOwnership(player.Value, silent);
         }
-        
+
         private void GiveOwnershipInternal(PlayerID player, bool silent = false)
         {
             if (!networkManager)
@@ -790,37 +790,37 @@ namespace PurrNet
                 PurrLogger.LogError("Trying to give ownership to " + player + " but identity isn't spawned.", this);
                 return;
             }
-            
+
             if (networkManager.TryGetModule(networkManager.isServer, out GlobalOwnershipModule module))
             {
                 module.GiveOwnership(this, player, silent: silent);
             }
             else PurrLogger.LogError("Failed to get ownership module.", this);
         }
-        
+
         public void RemoveOwnership()
         {
             if (!networkManager)
                 return;
-            
+
             if (networkManager.TryGetModule(networkManager.isServer, out GlobalOwnershipModule module))
             {
                 module.RemoveOwnership(this);
             }
             else PurrLogger.LogError("Failed to get ownership module.");
         }
-        
+
         protected virtual void OnDestroy()
         {
             if (ApplicationContext.isQuitting)
                 return;
-            
+
             TriggerDespawnEvent(true);
             TriggerDespawnEvent(false);
 
             _ticker = null;
         }
-        
+
         private int _spawnedCount;
         private bool _wasEarlySpawned;
 
@@ -842,10 +842,10 @@ namespace PurrNet
                 for (int i = 0; i < _externalModulesView.Count; i++)
                     _externalModulesView[i].OnSpawn();
             }
-            
+
             _spawnedCount++;
         }
-        
+
         internal void TriggerEarlySpawnEvent(bool asServer)
         {
             OnEarlySpawn(asServer);
@@ -859,7 +859,7 @@ namespace PurrNet
 
                 for (int i = 0; i < _externalModulesView.Count; i++)
                     _externalModulesView[i].OnEarlySpawn();
-                
+
                 _wasEarlySpawned = true;
             }
         }
@@ -869,19 +869,19 @@ namespace PurrNet
             if (!IsSpawned(asServer)) return;
 
             InternalOnDespawn(asServer);
-            
+
             --_spawnedCount;
             _wasEarlySpawned = false;
 
             OnDespawned(asServer);
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnDespawned(asServer);
 
             if (_spawnedCount == 0)
             {
                 OnDespawned();
-                
+
                 for (int i = 0; i < _externalModulesView.Count; i++)
                     _externalModulesView[i].OnDespawned();
             }
@@ -897,10 +897,10 @@ namespace PurrNet
             }
         }
 
-        internal void TriggerOnOwnerChanged(PlayerID? oldOwner, PlayerID? newOwner, bool asServer) 
+        internal void TriggerOnOwnerChanged(PlayerID? oldOwner, PlayerID? newOwner, bool asServer)
         {
             OnOwnerChanged(oldOwner, newOwner, asServer);
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnOwnerChanged(oldOwner, newOwner, asServer);
         }
@@ -908,7 +908,7 @@ namespace PurrNet
         internal void TriggerOnOwnerDisconnected(PlayerID ownerId)
         {
             OnOwnerDisconnected(ownerId);
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnOwnerDisconnected(ownerId);
         }
@@ -916,7 +916,7 @@ namespace PurrNet
         internal void TriggerOnOwnerReconnected(PlayerID ownerId, bool asServer)
         {
             OnOwnerReconnected(ownerId);
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnOwnerReconnected(ownerId);
         }
@@ -924,7 +924,7 @@ namespace PurrNet
         public void TriggerOnObserverAdded(PlayerID target)
         {
             OnObserverAdded(target);
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnObserverAdded(target);
         }
@@ -932,7 +932,7 @@ namespace PurrNet
         public void TriggerOnObserverRemoved(PlayerID target)
         {
             OnObserverRemoved(target);
-            
+
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnObserverRemoved(target);
         }
