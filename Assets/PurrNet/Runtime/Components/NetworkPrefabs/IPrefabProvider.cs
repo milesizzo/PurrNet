@@ -16,8 +16,6 @@ namespace PurrNet
     {
         IEnumerable<PrefabData> Prefabs { get; }
 
-        bool TryGetPrefab(Guid prefabId, out GameObject prefab);
-
         bool TryGetPrefabData(Guid prefabId, out PrefabData prefabData);
 
         bool TryGetPrefabData(GameObject prefab, out PrefabData prefabData);
@@ -28,8 +26,6 @@ namespace PurrNet
     public abstract class PrefabProviderScriptable : ScriptableObject, IPrefabProvider
     {
         public abstract IEnumerable<PrefabData> Prefabs { get; }
-
-        public abstract bool TryGetPrefab(Guid prefabId, out GameObject prefab);
 
         public abstract bool TryGetPrefabData(Guid prefabId, out PrefabData prefabData);
 

@@ -4,7 +4,6 @@ using UnityEngine;
 using System.IO;
 using PurrNet.Logging;
 using Object = UnityEngine.Object;
-using System.Linq;
 
 #if UNITY_EDITOR
 using PurrNet.Utils;
@@ -34,17 +33,6 @@ namespace PurrNet
 
         public override IEnumerable<PrefabData> Prefabs => _prefabDataLookup.Values;
 
-        public override bool TryGetPrefab(Guid prefabId, out GameObject prefab)
-        {
-            if (!_prefabDataLookup.TryGetValue(prefabId, out var prefabData))
-            {
-                prefab = null;
-                return false;
-            }
-            prefab = prefabData.prefab;
-            return true;
-        }
-
         public override bool TryGetPrefabData(Guid prefabId, out PrefabData prefab)
         {
             return _prefabDataLookup.TryGetValue(prefabId, out prefab);
@@ -52,11 +40,13 @@ namespace PurrNet
 
         public override bool TryGetPrefab(Guid prefabId, int offset, out GameObject prefab)
         {
-            if (!TryGetPrefab(prefabId, out var root))
+            if (!TryGetPrefabData(prefabId, out var prefabData))
             {
                 prefab = null;
                 return false;
             }
+
+            var root = prefabData.prefab;
 
             if (offset == 0)
             {
