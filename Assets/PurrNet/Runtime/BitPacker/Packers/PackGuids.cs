@@ -5,11 +5,16 @@ namespace PurrNet.Packing
 {
     public static class PackGuids
     {
+        private readonly static byte[] _guidBuffer = new byte[16];
+
         [UsedByIL]
         public static void Write(this BitPacker packer, Guid data)
         {
-            // TODO: figure out how to do this without allocating (i.e. Guid.TryWriteBytes with static byte[16])
-            packer.WriteBytes(data.ToByteArray());
+            if (!data.TryWriteBytes(_guidBuffer))
+            {
+                throw new InvalidOperationException($"Failed to write Guid {data} to buffer.");
+            }
+            packer.WriteBytes(_guidBuffer);
         }
 
         [UsedByIL]
