@@ -37,6 +37,10 @@ namespace PurrNet
         [SerializeField, HideInInspector]
         private List<NetworkIdentity> _directChildren;
 
+        public event Action<PlayerID> onObserverAdded;
+
+        public event Action<PlayerID> onObserverRemoved;
+
         internal Transform defaultParent { get; private set; }
 
         public int[] invertedPathToNearestParent
@@ -228,7 +232,21 @@ namespace PurrNet
         [UsedImplicitly]
         public bool IsController(bool ownerHasAuthority) => ownerHasAuthority ? isController : isServer;
 
-        public bool IsController(bool asServer, bool ownerHasAuthority) => ownerHasAuthority ? isController : asServer;
+        public bool IsController(bool ownerHasAuthority, bool asServer) => ownerHasAuthority ? isController : asServer;
+
+        public bool IsController(PlayerID player, bool ownerHasAuthority, bool asServer)
+        {
+            if (!ownerHasAuthority)
+                return asServer;
+
+            if (!hasConnectedOwner)
+                return asServer;
+
+            if (player == owner)
+                return true;
+
+            return asServer;
+        }
 
         public bool hasConnectedOwner => networkManager && owner.HasValue && networkManager.TryGetModule<PlayersManager>(isServer, out var module) && module.IsPlayerConnected(owner.Value);
 
@@ -333,12 +351,6 @@ namespace PurrNet
         private void DuplicatePrototype()
         {
             Duplicate();
-        }
-
-        [ContextMenu("PurrNet/Spawn")]
-        private void SpawnMenu()
-        {
-            Spawn();
         }
 
         /// <summary>
@@ -657,7 +669,7 @@ namespace PurrNet
             _directChildren.Remove(networkIdentity);
         }
 
-        internal void SetIdentity(NetworkManager manager, HierarchyV2 hierarchy, SceneID scene, bool asServer)
+        internal void SetIdentity(NetworkManager manager, HierarchyV2 hierarchy, SceneID scene, bool asServer, bool asHost)
         {
             isInPool = false;
             layer = gameObject.layer;
@@ -669,6 +681,9 @@ namespace PurrNet
             if (asServer)
             {
                 _isSpawnedServer = true;
+                if (asHost)
+                    _isSpawnedClient = true;
+
                 _serverHierarchy = hierarchy;
                 internalOwnerServer = null;
             }
@@ -721,8 +736,32 @@ namespace PurrNet
         /// The gameobject must contain a PrefabLink component in order to spawn.
         /// Errors will be logged if something goes wrong.
         /// </summary>
+        /// <param name="prefab">Prefab used to spawn the object</param>
         /// <param name="manager">Optional NetworkManager to use, will use NetworkManager.main if not provided</param>
-        public void Spawn(NetworkManager manager = null)
+        public void Spawn(GameObject prefab, NetworkManager manager = null)
+        {
+            if (isSpawned)
+                return;
+
+            if (!manager)
+            {
+                manager = NetworkManager.main;
+
+                if (!manager)
+                {
+                    PurrLogger.LogError("Failed to spawn object. No NetworkManager found.", this);
+                    return;
+                }
+            }
+
+            if (manager.TryGetModule(manager.isServer, out HierarchyFactory module) &&
+                module.TryGetHierarchy(gameObject.scene, out var hierarchy))
+            {
+                hierarchy.OnGameObjectCreated(gameObject, prefab);
+            }
+        }
+
+        internal void Spawn(NetworkManager manager = null)
         {
             if (isSpawned)
                 return;
@@ -745,12 +784,35 @@ namespace PurrNet
             }
         }
 
+
         /// <summary>
         /// Spawn any child objects of this object.
         /// </summary>
         /// <param name="go">GameObject to spawn</param>
+        /// <param name="prefab">Prefab used to spawn the object</param>
         /// <param name="manager">Optional NetworkManager to use, will use NetworkManager.main if not provided</param>
-        public static void Spawn(GameObject go, NetworkManager manager = null)
+        public static void Spawn(GameObject go, GameObject prefab, NetworkManager manager = null)
+        {
+            if (!go)
+                return;
+
+            if (go.TryGetComponent(out NetworkIdentity identity))
+            {
+                identity.Spawn(prefab, manager);
+                return;
+            }
+
+            using var identities = new DisposableList<TransformIdentityPair>(16);
+            HierarchyPool.GetDirectChildren(go.transform, identities);
+
+            for (var i = 0; i < identities.Count; i++)
+            {
+                var pair = identities[i];
+                pair.identity.Spawn(prefab, manager);
+            }
+        }
+
+        public static void SpawnInternal(GameObject go, NetworkManager manager = null)
         {
             if (!go)
                 return;
@@ -787,7 +849,8 @@ namespace PurrNet
         {
             if (!networkManager)
             {
-                PurrLogger.LogError("Trying to give ownership to " + player + " but identity isn't spawned.", this);
+                if (!silent)
+                    PurrLogger.LogError("Trying to give ownership to " + player + " but identity isn't spawned.", this);
                 return;
             }
 
@@ -795,7 +858,7 @@ namespace PurrNet
             {
                 module.GiveOwnership(this, player, silent: silent);
             }
-            else PurrLogger.LogError("Failed to get ownership module.", this);
+            else if (!silent) PurrLogger.LogError("Failed to get ownership module.", this);
         }
 
         public void RemoveOwnership()
@@ -927,6 +990,7 @@ namespace PurrNet
 
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnObserverAdded(target);
+            onObserverAdded?.Invoke(target);
         }
 
         public void TriggerOnObserverRemoved(PlayerID target)
@@ -935,6 +999,7 @@ namespace PurrNet
 
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnObserverRemoved(target);
+            onObserverRemoved?.Invoke(target);
         }
 
         internal void ClearObservers()

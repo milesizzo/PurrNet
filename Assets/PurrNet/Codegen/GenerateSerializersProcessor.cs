@@ -79,54 +79,57 @@ namespace PurrNet.Codegen
         {
             return name.Replace("<", "_").Replace(">", "_").Replace(",", "_").Replace(" ", "_").Replace(".", "_").Replace("`", "_").Replace("/", "_").Replace("[", "_I_").Replace("]", "_I_");
         }
-        
-        public static void HandleType(bool hashOnly, AssemblyDefinition assembly, TypeReference type, HashSet<string> visited, bool isEditor, List<DiagnosticMessage> messages)
+
+        public static void HandleType(bool hashOnly, AssemblyDefinition assembly, TypeReference type,
+            HashSet<string> visited, bool isEditor, HashSet<TypeReference> ignoreSerialization,
+            HashSet<TypeReference> ignoreDelta)
         {
             if (!visited.Add(type.FullName))
                 return;
 
             if (!ValideType(type))
                 return;
-            
+
             if (!PostProcessor.IsTypeInOwnModule(type, assembly.MainModule))
                 return;
-            
+
             string namespaceName = type.Namespace;
             if (string.IsNullOrWhiteSpace(namespaceName))
                 namespaceName = "PurrNet.CodeGen.Serializers";
             else namespaceName += ".PurrNet.CodeGen.Serializers";
-            
+
             // create static class
-            var serializerClass = new TypeDefinition(namespaceName, 
+            var serializerClass = new TypeDefinition(namespaceName,
                 $"{MakeFullNameValidCSharp(type.FullName)}_Serializer",
                 TypeAttributes.Class | TypeAttributes.Sealed | TypeAttributes.Abstract | TypeAttributes.Public,
                 assembly.MainModule.TypeSystem.Object
             );
-            
+
             var resolvedType = type.Resolve();
-            
+
             if (resolvedType == null)
                 return;
-            
+
             if (resolvedType.IsInterface)
                 return;
-            
+
             bool isNetworkIdentity = PostProcessor.InheritsFrom(resolvedType, typeof(NetworkIdentity).FullName);
             bool isNetworkModule = PostProcessor.InheritsFrom(resolvedType, typeof(NetworkModule).FullName);
             bool hasINetworkModule = HasInterface(resolvedType, typeof(INetworkModule));
-            
-            if (!isNetworkIdentity && !isNetworkModule && PostProcessor.InheritsFrom(resolvedType, typeof(Object).FullName) && 
-                !HasInterface(resolvedType, typeof(IPacked)) && 
-                !HasInterface(resolvedType, typeof(IPackedAuto)) && 
+
+            if (!isNetworkIdentity && !isNetworkModule &&
+                PostProcessor.InheritsFrom(resolvedType, typeof(Object).FullName) &&
+                !HasInterface(resolvedType, typeof(IPacked)) &&
+                !HasInterface(resolvedType, typeof(IPackedAuto)) &&
                 !HasInterface(resolvedType, typeof(IPackedSimple)))
                 return;
 
             if (hasINetworkModule)
                 return;
-            
+
             var bitStreamType = assembly.MainModule.GetTypeDefinition(typeof(BitPacker)).Import(assembly.MainModule);
             var mainmodule = assembly.MainModule;
-            
+
             assembly.MainModule.Types.Add(serializerClass);
 
             if (hashOnly)
@@ -137,11 +140,11 @@ namespace PurrNet.Codegen
 
             if (IsGeneric(type, out var genericT))
             {
-                GenerateDeltaSerializersProcessor.HandleGenericType(assembly, type, genericT, messages);
+                GenerateDeltaSerializersProcessor.HandleGenericType(assembly, type, genericT);
                 HandleGenerics(assembly, type, genericT, serializerClass, isEditor);
                 return;
             }
-            
+
             if (isNetworkIdentity)
             {
                 HandleNetworkIdentity(assembly, type, serializerClass, isEditor);
@@ -153,42 +156,50 @@ namespace PurrNet.Codegen
                 HandleNetworkModule(assembly, type, serializerClass, isEditor);
                 return;
             }
-            
-            // create static write method
-            var writeMethod = new MethodDefinition("Write", MethodAttributes.Public | MethodAttributes.Static, assembly.MainModule.TypeSystem.Void);
-            var valueArg = new ParameterDefinition("value", ParameterAttributes.None, type);
-            var streamArg = new ParameterDefinition("stream", ParameterAttributes.None, bitStreamType);
-            writeMethod.Parameters.Add(streamArg);
-            writeMethod.Parameters.Add(valueArg);
-            writeMethod.Body = new MethodBody(writeMethod)
+
+            if (ignoreSerialization?.Contains(type) == false)
             {
-                InitLocals = true
-            };
+                // create static write method
+                var writeMethod = new MethodDefinition("Write", MethodAttributes.Public | MethodAttributes.Static,
+                    assembly.MainModule.TypeSystem.Void);
+                var valueArg = new ParameterDefinition("value", ParameterAttributes.None, type);
+                var streamArg = new ParameterDefinition("stream", ParameterAttributes.None, bitStreamType);
+                writeMethod.Parameters.Add(streamArg);
+                writeMethod.Parameters.Add(valueArg);
+                writeMethod.Body = new MethodBody(writeMethod)
+                {
+                    InitLocals = true
+                };
+
+                var packerType = mainmodule.GetTypeDefinition(typeof(Packer<>)).Import(mainmodule);
+                var readMethodP = packerType.GetMethod("Read").Import(mainmodule);
+                var writeMethodP = packerType.GetMethod("Write").Import(mainmodule);
+
+                var write = writeMethod.Body.GetILProcessor();
+                GenerateMethod(true, writeMethod, writeMethodP, type, write, mainmodule, valueArg);
+                serializerClass.Methods.Add(writeMethod);
+
+                // create static read method
+                var readMethod = new MethodDefinition("Read", MethodAttributes.Public | MethodAttributes.Static,
+                    assembly.MainModule.TypeSystem.Void);
+                readMethod.Parameters.Add(new ParameterDefinition("stream", ParameterAttributes.None, bitStreamType));
+                readMethod.Parameters.Add(new ParameterDefinition("value", ParameterAttributes.None,
+                    new ByReferenceType(type)));
+
+                readMethod.Body = new MethodBody(readMethod)
+                {
+                    InitLocals = true
+                };
+
+                var read = readMethod.Body.GetILProcessor();
+                GenerateMethod(false, readMethod, readMethodP, type, read, mainmodule, valueArg);
+                serializerClass.Methods.Add(readMethod);
+            }
+
+            if (ignoreDelta?.Contains(type) == false)
+                GenerateDeltaSerializersProcessor.HandleType(assembly, type, serializerClass);
             
-            var packerType = mainmodule.GetTypeDefinition(typeof(Packer<>)).Import(mainmodule);
-            var readMethodP = packerType.GetMethod("Read").Import(mainmodule);
-            var writeMethodP = packerType.GetMethod("Write").Import(mainmodule);
-            
-            var write = writeMethod.Body.GetILProcessor();
-            GenerateMethod(true, writeMethod, writeMethodP, type, write, mainmodule, valueArg);
-            serializerClass.Methods.Add(writeMethod);
-            
-            // create static read method
-            var readMethod = new MethodDefinition("Read", MethodAttributes.Public | MethodAttributes.Static, assembly.MainModule.TypeSystem.Void);
-            readMethod.Parameters.Add(new ParameterDefinition("stream", ParameterAttributes.None, bitStreamType));
-            readMethod.Parameters.Add(new ParameterDefinition("value", ParameterAttributes.None, new ByReferenceType(type)));
-            
-            readMethod.Body = new MethodBody(readMethod)
-            {
-                InitLocals = true
-            };
-            
-            var read = readMethod.Body.GetILProcessor();
-            GenerateMethod(false, readMethod, readMethodP, type, read, mainmodule, valueArg);
-            serializerClass.Methods.Add(readMethod);
-            
-            GenerateDeltaSerializersProcessor.HandleType(assembly, type, serializerClass, messages);
-            RegisterSerializersProcessor.HandleType(type.Module, serializerClass, isEditor, messages);
+            RegisterSerializersProcessor.HandleType(type.Module, serializerClass, isEditor, null, null);
         }
 
         private static void HandleHashOnly(AssemblyDefinition assembly, TypeReference type, TypeDefinition serializerClass, bool isEditor)

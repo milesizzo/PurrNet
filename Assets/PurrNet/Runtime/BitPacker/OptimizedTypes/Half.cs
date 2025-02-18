@@ -1,9 +1,3 @@
-/// ================ Half.cs ====================
-/// The code is free to use for any reason without any restrictions.
-/// Ladislav Lang (2009), Joannes Vermorel (2017)
-/// https://gist.github.com/vermorel/1d5c0212752b3e611faf84771ad4ff0d
-/// dotnet 5 has built in Half Type
-
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -38,6 +32,16 @@ namespace PurrNet.Packing
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         internal ushort Value;
         
+        public ushort rawValue => Value;
+        
+        public static Half FromRawValue(ushort rawValue)
+        {
+            return new Half
+            {
+                Value = rawValue
+            };
+        }
+
         #region Constants
         /// <summary>
         /// Represents the smallest positive System.Half value greater than zero. This field is constant.
@@ -66,7 +70,6 @@ namespace PurrNet.Packing
         #endregion
 
         #region Constructors
-        public Half(ushort rawValue) { Value = rawValue; }
         /// <summary>
         /// Initializes a new instance of System.Half to the value of the specified single-precision floating-point number.
         /// </summary>
@@ -432,7 +435,7 @@ namespace PurrNet.Packing
         /// <exception cref="System.ArgumentException">value is not a System.Half</exception>
         public int CompareTo(object obj)
         {
-            int result = 0;
+            int result;
             if (obj == null)
             {
                 result = 1;
@@ -894,8 +897,6 @@ namespace PurrNet.Packing
         #endregion
     }
 }
-
-/// ================ HalfHelper.cs ====================
 
 namespace PurrNet.Packing
 {

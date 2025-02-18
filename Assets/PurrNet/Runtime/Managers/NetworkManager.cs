@@ -3,6 +3,7 @@ using UnityEditor;
 #endif
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using PurrNet.Authentication;
@@ -807,6 +808,11 @@ namespace PurrNet
             modules.AddModule(new RpcRequestResponseModule(playersManager));
             modules.AddModule(hierarchyV2);
 
+            var networkTransform =
+                new NetworkTransformFactory(scenesModule, scenePlayers, playersBroadcast, this);
+
+            modules.AddModule(networkTransform);
+
             RenewSubscriptions(asServer);
         }
 
@@ -879,6 +885,12 @@ namespace PurrNet
 
             if (clientConnected)
                 _clientModules.TriggerOnFixedUpdate();
+
+            if (serverConnected)
+                _serverModules.TriggerOnPostFixedUpdate();
+
+            if (clientConnected)
+                _clientModules.TriggerOnPostFixedUpdate();
 
             if (_isCleaningClient && _clientModules.Cleanup())
             {
@@ -1040,6 +1052,8 @@ namespace PurrNet
             TriggerUnsubscribeEvents(false);
         }
 
+        private Coroutine _clientCoroutine;
+
         /// <summary>
         /// Starts the client.
         /// This will start the transport client.
@@ -1049,6 +1063,21 @@ namespace PurrNet
             localClientConnection = null;
             if (!_transport)
                 PurrLogger.Throw<InvalidOperationException>("Transport is not set (null).");
+
+            if (_clientCoroutine != null)
+            {
+                StopCoroutine(_clientCoroutine);
+                _clientCoroutine = null;
+            }
+
+            _clientCoroutine = StartCoroutine(StartClientCoroutine());
+        }
+
+        IEnumerator StartClientCoroutine()
+        {
+            while (serverState is ConnectionState.Connecting)
+                yield return null;
+
             _transport.StartClient(this);
         }
 
@@ -1134,6 +1163,12 @@ namespace PurrNet
         /// </summary>
         public void StopClient()
         {
+            if (_clientCoroutine != null)
+            {
+                StopCoroutine(_clientCoroutine);
+                _clientCoroutine = null;
+            }
+
             _transport.StopClient(this);
         }
 

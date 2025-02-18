@@ -60,7 +60,7 @@ namespace PurrNet
         public bool IsController(bool ownerHasAuthority) => parent && parent.IsController(ownerHasAuthority);
         
         [UsedImplicitly]
-        public bool IsController(bool asServer, bool ownerHasAuthority) => parent && parent.IsController(asServer, ownerHasAuthority);
+        public bool IsController(bool ownerHasAuthority, bool asServer) => parent && parent.IsController(asServer, ownerHasAuthority);
         
         [UsedByIL]
         public void Error(string message)

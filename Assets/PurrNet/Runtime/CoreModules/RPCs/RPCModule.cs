@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using K4os.Compression.LZ4;
 using PurrNet.Logging;
 using PurrNet.Packing;
+using PurrNet.Transports;
 using PurrNet.Utils;
 using UnityEngine;
 
@@ -745,6 +747,50 @@ namespace PurrNet.Modules
                 else PurrLogger.LogError($"Can't find RPC handler for id {packet.rpcId} in identity {identity.GetType().Name}.");
             }
             // else PurrLogger.LogError($"Can't find identity with id {packet.networkId} in scene {packet.sceneId}.");
+        }
+
+        static void Test()
+        {
+            var packer = BitPackerPool.Get();
+            var packet = new RPCPacket();
+            PreProcessRpc(ref packet.data, default, ref packer);
+        }
+        
+        [UsedByIL]
+        public static void PreProcessRpc(ref ByteData rpcData, RPCSignature signature, ref BitPacker packer)
+        {
+            if (signature.compressionLevel == CompressionLevel.None)
+                return;
+            
+            var level = signature.compressionLevel switch
+            {
+                CompressionLevel.None => LZ4Level.L00_FAST,
+                CompressionLevel.Fast => LZ4Level.L00_FAST,
+                CompressionLevel.Balanced => LZ4Level.L06_HC,
+                CompressionLevel.Best => LZ4Level.L12_MAX,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            
+            var newPacker = packer.Pickle(level);
+            rpcData = newPacker.ToByteData();
+
+            packer.Dispose();
+            packer = newPacker;
+            
+        }
+        
+        [UsedByIL]
+        public static void PostProcessRpc(ByteData rpcData, RPCInfo info, ref BitPacker packer)
+        {
+            if (info.compileTimeSignature.compressionLevel == CompressionLevel.None)
+                return;
+            
+            var newPacker = BitPackerPool.Get();
+            newPacker.UnpickleFrom(rpcData);
+            newPacker.ResetPositionAndMode(true);
+            
+            packer.Dispose();
+            packer = newPacker;
         }
     }
 }

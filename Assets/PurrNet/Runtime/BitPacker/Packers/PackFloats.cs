@@ -6,20 +6,6 @@ namespace PurrNet.Packing
     public static class PackFloats
     {
         [UsedByIL]
-        public static void Write(this BitPacker packer, Half half)
-        {
-            packer.Write(half.Value);
-        }
-        
-        [UsedByIL]
-        public static void Read(this BitPacker packer, ref Half half)
-        {
-            ushort data = default;
-            packer.Read(ref data);
-            half = new Half(data);
-        }
-        
-        [UsedByIL]
         public static void Write(this BitPacker packer, float data)
         {
             packer.WriteBits((ulong)BitConverter.SingleToInt32Bits(data), 32);

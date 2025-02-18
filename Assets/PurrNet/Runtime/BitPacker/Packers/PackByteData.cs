@@ -8,7 +8,7 @@ namespace PurrNet.Packing
         [UsedByIL]
         public static void Write(this BitPacker packer, ByteData data)
         {
-            Packer<int>.Write(packer, data.length);
+            Packer<PackedInt>.Write(packer, data.length);
             packer.WriteBytes(data.span);
         }
         
@@ -17,8 +17,8 @@ namespace PurrNet.Packing
         {
             // TODO: use BitData instead of ByteData and map BitData directly to BitPacker underlaying buffer
             
-            int length = default;
-            Packer<int>.Read(packer, ref length);
+            PackedInt length = default;
+            Packer<PackedInt>.Read(packer, ref length);
             
             byte[] buffer = new byte[length];
             packer.ReadBytes(buffer);
@@ -34,12 +34,31 @@ namespace PurrNet.Packing
         [UsedByIL]
         public static void Read(this BitPacker packer, ref BitPacker data)
         {
-            int length = default;
-            Packer<int>.Read(packer, ref length);
+            PackedInt length = default;
+            Packer<PackedInt>.Read(packer, ref length);
             
             data = BitPackerPool.Get();
             packer.ReadBytes(data, length);
             data.ResetPosition();
+        }
+        
+        [UsedByIL]
+        public static void Write(this BitPacker packer, BitPackerWithLength data)
+        {
+            Write(packer, data.packer.ToByteData());
+        }
+        
+        [UsedByIL]
+        public static void Read(this BitPacker packer, ref BitPackerWithLength data)
+        {
+            PackedInt length = default;
+            Packer<PackedInt>.Read(packer, ref length);
+            
+            var dataPacker = BitPackerPool.Get();
+            packer.ReadBytes(dataPacker, length);
+            dataPacker.ResetPosition();
+            
+            data = new BitPackerWithLength(length, dataPacker);
         }
     }
 }

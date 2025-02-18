@@ -39,11 +39,23 @@ namespace PurrNet
 
         public void Normalize()
         {
-            var magnitude = (Half)Mathf.Sqrt(x * x + y * y + z * z + w * w);
-            x /= magnitude;
-            y /= magnitude;
-            z /= magnitude;
-            w /= magnitude;
+            Quaternion quaternion = this;
+            quaternion.Normalize();
+            
+            x = new Half(quaternion.x);
+            y = new Half(quaternion.y);
+            z = new Half(quaternion.z);
+            w = new Half(quaternion.w);
+        }
+        
+        public static implicit operator Quaternion(HalfQuaternion value)
+        {
+            return value.ToQuaternion();
+        }
+        
+        public static implicit operator HalfQuaternion(Quaternion value)
+        {
+            return new HalfQuaternion(value);
         }
     }
 }

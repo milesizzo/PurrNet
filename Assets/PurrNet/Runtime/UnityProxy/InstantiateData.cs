@@ -196,6 +196,7 @@ namespace PurrNet
             var trs = go.transform;
             switch (type)
             {
+                case InstantiateType.PositionRotationScene:
                 case InstantiateType.PositionRotation:
                     trs.SetPositionAndRotation(position, rotation);
                     break;

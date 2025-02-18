@@ -9,7 +9,7 @@ using Unity.CompilationPipeline.Common.ILPostProcessing;
 
 namespace PurrNet.Codegen
 {
-    internal class AssemblyResolver : IAssemblyResolver
+    public class AssemblyResolver : IAssemblyResolver
     {
         private readonly string[] m_AssemblyReferences;
         private readonly Dictionary<string, AssemblyDefinition> m_AssemblyCache = new Dictionary<string, AssemblyDefinition>();

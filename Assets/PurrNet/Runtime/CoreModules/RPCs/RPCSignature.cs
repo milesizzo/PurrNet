@@ -1,4 +1,5 @@
 ﻿using JetBrains.Annotations;
+using K4os.Compression.LZ4;
 using PurrNet.Modules;
 using PurrNet.Transports;
 
@@ -34,10 +35,11 @@ namespace PurrNet
         public bool excludeSender;
         public string rpcName;
         public float asyncTimeoutInSec;
+        public CompressionLevel compressionLevel;
         public PlayerID? targetPlayer;
 
         [UsedImplicitly]
-        public static RPCSignature Make(RPCType type, Channel channel, bool runLocally, bool requireOwnership, bool bufferLast, bool requireServer, bool excludeOwner, string name, bool isStatic, float asyncTimoutInSec, bool excludeSender)
+        public static RPCSignature Make(RPCType type, Channel channel, bool runLocally, bool requireOwnership, bool bufferLast, bool requireServer, bool excludeOwner, string name, bool isStatic, float asyncTimoutInSec, CompressionLevel compressionLevel, bool excludeSender)
         {
             return new RPCSignature
             {
@@ -52,14 +54,15 @@ namespace PurrNet
                 targetPlayer = null,
                 isStatic = isStatic,
                 rpcName = name,
-                asyncTimeoutInSec = asyncTimoutInSec
+                asyncTimeoutInSec = asyncTimoutInSec,
+                compressionLevel = compressionLevel
             };
         }
         
         [UsedImplicitly]
-        public static RPCSignature MakeWithTarget(RPCType type, Channel channel, bool runLocally, bool requireOwnership, bool bufferLast, bool requireServer, bool excludeOwner, string name, bool isStatic, float asyncTimoutInSec, bool excludeSender, PlayerID playerID)
+        public static RPCSignature MakeWithTarget(RPCType type, Channel channel, bool runLocally, bool requireOwnership, bool bufferLast, bool requireServer, bool excludeOwner, string name, bool isStatic, float asyncTimoutInSec, CompressionLevel compressionLevel, bool excludeSender, PlayerID playerID)
         {
-            var rpc = Make(type, channel, runLocally, requireOwnership, bufferLast, requireServer, excludeOwner, name, isStatic, asyncTimoutInSec, excludeSender);
+            var rpc = Make(type, channel, runLocally, requireOwnership, bufferLast, requireServer, excludeOwner, name, isStatic, asyncTimoutInSec, compressionLevel, excludeSender);
             rpc.targetPlayer = playerID;
             return rpc;
         }

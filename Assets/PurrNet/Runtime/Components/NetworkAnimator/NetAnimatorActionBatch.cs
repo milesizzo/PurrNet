@@ -8,7 +8,7 @@ namespace PurrNet
     {
         public List<NetAnimatorRPC> actions;
         
-        public static NetAnimatorActionBatch CreateReconcile(Animator animator, bool ik)
+        public static NetAnimatorActionBatch CreateReconcile(HashSet<int> ignoreHashes, Animator animator, bool ik)
         {
             var actions = new List<NetAnimatorRPC>();
 
@@ -26,7 +26,7 @@ namespace PurrNet
             }
             else
             {
-                SyncParameters(animator, actions);
+                SyncParameters(ignoreHashes, animator, actions);
                 SyncAnimationState(animator, actions);
 
                 actions.Add(new NetAnimatorRPC(new SetApplyRootMotion
@@ -133,7 +133,7 @@ namespace PurrNet
             }
         }
 
-        private static void SyncParameters(Animator animator, List<NetAnimatorRPC> actions)
+        private static void SyncParameters(HashSet<int> ignoreHashes, Animator animator, List<NetAnimatorRPC> actions)
         {
             if (!animator.runtimeAnimatorController)
                 return;
@@ -143,6 +143,9 @@ namespace PurrNet
             for (var i = 0; i < paramCount; i++)
             {
                 var param = animator.parameters[i];
+                
+                if (ignoreHashes.Contains(param.nameHash))
+                    continue;
 
                 switch (param.type)
                 {

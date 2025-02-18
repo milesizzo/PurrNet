@@ -1,3 +1,6 @@
+using System;
+using System.Runtime.CompilerServices;
+using Cysharp.Threading.Tasks;
 using PurrNet.Logging;
 using PurrNet.Modules;
 using PurrNet.Pooling;
@@ -331,10 +334,17 @@ namespace PurrNet
             => Object.Destroy(obj);
 
         [UsedByIL]
-        public static void Destroy(Object obj, float t)
+        public static async void Destroy(Object obj, float t)
         {
-            // TODO: Implement delay
-            Object.Destroy(obj, t);
+            try
+            {
+                await UniTask.WaitForSeconds(t);
+                Destroy(obj);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
         }
 
         public static void DestroyDirectly(Object obj, float t)

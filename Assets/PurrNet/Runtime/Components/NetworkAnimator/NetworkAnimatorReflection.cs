@@ -44,7 +44,7 @@ namespace PurrNet
             {
                 var param = _animator.parameters[i];
 
-                if (_sontSyncHashes.Contains(param.nameHash))
+                if (_dontSyncHashes.Contains(param.nameHash))
                     continue;
                 
                 switch (param.type)
@@ -73,7 +73,7 @@ namespace PurrNet
             {
                 var param = _animator.parameters[i];
                 
-                if (_sontSyncHashes.Contains(param.nameHash))
+                if (_dontSyncHashes.Contains(param.nameHash))
                     continue;
 
                 switch (param.type)

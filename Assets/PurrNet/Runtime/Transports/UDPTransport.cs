@@ -16,7 +16,11 @@ namespace PurrNet.Transports
         [Header("Client Settings")]
         [Tooltip("This is the IP the client will use to connect to the server.")]
         [SerializeField] private string _address = "127.0.0.1";
-        
+
+        [Header("Shared Settings")]
+        [Tooltip("The amount of time in seconds before socket is disconnected due to no data being received.")]
+        [SerializeField] private float _timeoutInSeconds = 5f;
+
         public event OnConnected onConnected;
         public event OnDisconnected onDisconnected;
         public event OnDataReceived onDataReceived;
@@ -63,6 +67,7 @@ namespace PurrNet.Transports
                 PingInterval = 900,
                 AutoRecycle = true,
                 EnableStatistics = false,
+                DisconnectTimeout = Mathf.RoundToInt(_timeoutInSeconds * 1000)
             };
             
             _server = new NetManager(_serverListener)
@@ -71,7 +76,7 @@ namespace PurrNet.Transports
                 PingInterval = 900,
                 AutoRecycle = true,
                 EnableStatistics = false,
-                
+                DisconnectTimeout = Mathf.RoundToInt(_timeoutInSeconds * 1000)
             };
 
             _clientListener.PeerConnectedEvent += OnClientConnected;
@@ -188,8 +193,8 @@ namespace PurrNet.Transports
         
         public void UnityUpdate(float delta)
         {
-            if (_server.IsRunning) _server.PollEvents();
-            if (_client.IsRunning) _client.PollEvents();
+            /*if (_server.IsRunning) _server.PollEvents();
+            if (_client.IsRunning) _client.PollEvents();*/
         }
 
         public void Connect(string ip, ushort port)

@@ -7,7 +7,7 @@ using PurrNet.Utils;
 
 namespace PurrNet.Packing
 {
-    public delegate void DeltaWriteFunc<in T>(BitPacker packer, T oldValue, T newValue);
+    public delegate bool DeltaWriteFunc<in T>(BitPacker packer, T oldValue, T newValue);
 
     public delegate void DeltaReadFunc<T>(BitPacker packer, T oldValue, ref T value);
     
@@ -40,21 +40,22 @@ namespace PurrNet.Packing
             _read = b;
         }
         
-        public static void Write(BitPacker packer, T oldValue, T newValue)
+        public static bool Write(BitPacker packer, T oldValue, T newValue)
         {
             try
             {
                 if (_write == null)
                 {
                     PurrLogger.LogError($"No delta writer for type '{typeof(T)}' is registered.");
-                    return;
+                    return false;
                 }
                 
-                _write(packer, oldValue, newValue);
+                return _write(packer, oldValue, newValue);
             }
             catch (Exception e)
             {
                 PurrLogger.LogError($"Failed to delta write value of type '{typeof(T)}'.\n{e.Message}\n{e.StackTrace}");
+                return false;
             }
         }
         

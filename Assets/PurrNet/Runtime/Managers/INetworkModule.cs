@@ -35,6 +35,11 @@ namespace PurrNet.Modules
         bool Cleanup();
     }
     
+    internal interface IPostFixedUpdate
+    {
+        void PostFixedUpdate();
+    }
+    
     internal interface IFixedUpdate
     {
         void FixedUpdate();

@@ -1,5 +1,4 @@
-﻿using System;
-using PurrNet.Modules;
+﻿using PurrNet.Modules;
 using PurrNet.Transports;
 using UnityEngine.Scripting;
 
@@ -13,6 +12,7 @@ namespace PurrNet
             bool runLocally = false, 
             bool bufferLast = false, 
             bool requireServer = true,
+            CompressionLevel compressionLevel = CompressionLevel.None,
             float asyncTimeoutInSec = 5f) { }
     }
 }

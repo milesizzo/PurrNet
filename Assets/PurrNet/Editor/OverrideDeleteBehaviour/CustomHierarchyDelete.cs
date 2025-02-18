@@ -29,7 +29,7 @@ namespace PurrNet.Editor
                     EditorApplication.delayCall += () =>
                     {
                         foreach (var go in Selection.gameObjects)
-                            NetworkIdentity.Spawn(go);
+                            NetworkIdentity.SpawnInternal(go);
                     };
                     break;
                 }

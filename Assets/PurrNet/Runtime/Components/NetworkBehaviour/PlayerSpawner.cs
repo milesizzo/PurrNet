@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using PurrNet.Logging;
 using PurrNet.Modules;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace PurrNet
 {
@@ -112,9 +111,8 @@ namespace PurrNet
             }
             else
             {
-                var instance = Instantiate(_playerPrefab);
-                SceneManager.MoveGameObjectToScene(instance, unityScene);
-                newPlayer = instance;
+                _playerPrefab.transform.GetPositionAndRotation(out var position, out var rotation);
+                newPlayer = UnityProxy.Instantiate(_playerPrefab, position, rotation, unityScene);
             }
             
             if (newPlayer.TryGetComponent(out NetworkIdentity identity))

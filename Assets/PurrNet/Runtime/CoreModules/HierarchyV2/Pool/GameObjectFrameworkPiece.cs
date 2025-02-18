@@ -1,6 +1,4 @@
-﻿using System;
-using System.Text;
-using PurrNet.Pooling;
+﻿using System.Text;
 
 namespace PurrNet.Modules
 {

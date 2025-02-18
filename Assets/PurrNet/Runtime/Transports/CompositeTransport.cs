@@ -234,9 +234,6 @@ namespace PurrNet.Transports
                 if (_transports[i])
                     _transports[i].transport.UnityUpdate(delta);
             }
-            
-            TriggerConnectionStateEvent(true);
-            TriggerConnectionStateEvent(false);
         }
 
         private void SetupEvents()

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Principal;
 using PurrNet.Logging;
 using PurrNet.Packing;
 using PurrNet.Pooling;
@@ -14,13 +13,7 @@ namespace PurrNet.Modules
         public NetworkID identity;
         public PlayerID player;
     }
-    
-    internal struct FullOwnershipChange
-    {
-        public PlayerID actor;
-        public OwnershipChange data;
-    }
-    
+
     internal struct OwnershipChangeBatch 
     {
         public SceneID scene;
@@ -184,10 +177,7 @@ namespace PurrNet.Modules
                 return;
             
             if (_sceneOwnerships.TryGetValue(identity.sceneId, out var module))
-            {
-                if (module.TryGetOwner(identity, out var oldOwner) && module.RemoveOwnership(identity))
-                    identity.TriggerOnOwnerChanged(oldOwner, null, _asServer);
-            }
+                module.RemoveOwnership(identity);
         }
 
         struct PlayerSceneID : IEquatable<PlayerSceneID>
@@ -473,6 +463,11 @@ namespace PurrNet.Modules
                 }
 
                 _idsCache.Add(identity.id.Value);
+                
+                var oldOwner = identity.GetOwner(_asServer);
+
+                if (module.RemoveOwnership(identity))
+                    identity.TriggerOnOwnerChanged(oldOwner, null, _asServer);
             }
 
             //TODO: compress _idsCache using RLE
@@ -483,11 +478,6 @@ namespace PurrNet.Modules
                 isAdding = false,
                 player = default
             };
-
-            var oldOwner = id.GetOwner(_asServer);
-
-            if (module.RemoveOwnership(id))
-                id.TriggerOnOwnerChanged(oldOwner, null, _asServer);
 
             if (_asServer)
             {
@@ -507,7 +497,8 @@ namespace PurrNet.Modules
         {
             if (!id.id.HasValue)
             {
-                PurrLogger.LogError($"Failed to remove ownership of '{id.gameObject.name}' because it isn't spawned.");
+                if (!supressErrorMessages)
+                    PurrLogger.LogError($"Failed to remove ownership of '{id.gameObject.name}' because it isn't spawned.");
                 return;
             }
             
@@ -516,13 +507,15 @@ namespace PurrNet.Modules
             
             if (!id.HasTransferOwnershipAuthority(_asServer))
             {
-                PurrLogger.LogError($"Failed to remove ownership of '{id.gameObject.name}' because of missing authority.");
+                if (!supressErrorMessages)
+                    PurrLogger.LogError($"Failed to remove ownership of '{id.gameObject.name}' because of missing authority.");
                 return;
             }
 
             if (!_sceneOwnerships.TryGetValue(id.sceneId, out var module))
             {
-                PurrLogger.LogError($"No ownership module avaible for scene {id.sceneId} '{id.gameObject.scene.name}'");
+                if (!supressErrorMessages)
+                    PurrLogger.LogError($"No ownership module avaible for scene {id.sceneId} '{id.gameObject.scene.name}'");
                 return;
             }
             
@@ -535,7 +528,7 @@ namespace PurrNet.Modules
             for (var i = 0; i < children.Count; i++)
             {
                 var identity = children[i];
-                
+
                 if (!identity.id.HasValue) continue;
                 if (!module.TryGetOwner(identity, out var player) || player != originalOwner) continue;
                 if (!identity.HasTransferOwnershipAuthority(_asServer))
@@ -544,8 +537,14 @@ namespace PurrNet.Modules
                         PurrLogger.LogError($"Failed to override ownership of '{identity.gameObject.name}' because of missing authority.");
                     continue;
                 }
-                    
-                _idsCache.Add(identity.id.Value);
+                
+                var oldOwner = identity.GetOwner(_asServer);
+
+                if (module.RemoveOwnership(identity))
+                {
+                    identity.TriggerOnOwnerChanged(oldOwner, null, _asServer);
+                    _idsCache.Add(identity.id.Value);
+                }
             }
 
             //TODO: compress _idsCache using RLE
@@ -556,11 +555,6 @@ namespace PurrNet.Modules
                 isAdding = false,
                 player = default
             };
-
-            var oldOwner = id.GetOwner(_asServer);
-
-            if (module.RemoveOwnership(id))
-                id.TriggerOnOwnerChanged(oldOwner, id.owner, _asServer);
 
             if (_asServer)
             {
@@ -639,7 +633,7 @@ namespace PurrNet.Modules
 
             if (oldOwner == change.player)
                 return;
-
+            
             if (module.GiveOwnership(identity, change.player))
                 identity.TriggerOnOwnerChanged(oldOwner, change.player, _asServer);
         }
@@ -690,7 +684,7 @@ namespace PurrNet.Modules
                     PurrLogger.LogError(
                         $"Failed to remove ownership of '{identity.gameObject.name}' to {change.player} because of missing authority.", identity);
                 }
-                else if (module.RemoveOwnership(identity) && identity.id.HasValue)
+                else if (module.RemoveOwnership(identity))
                 {
                     identity.TriggerOnOwnerChanged(oldOwner, null, _asServer);
                 }

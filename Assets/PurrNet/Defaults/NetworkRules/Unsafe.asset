@@ -31,11 +31,8 @@ MonoBehaviour:
   _defaultSceneRules:
     removePlayerFromSceneOnDisconnect: 0
   _defaultIdentityRules:
-    syncComponentActive: 0
-    syncComponentAuth: -1
-    syncGameObjectActive: 0
-    syncGameObjectActiveAuth: -1
     receiveRpcsWhenDisabled: 1
   _defaultTransformRules:
-    syncParent: 1
     changeParentAuth: -1
+  _defaultMiscRules:
+    syncedTickUpdateInterval: 1

@@ -4,14 +4,12 @@ using System.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using PurrNet.Packing;
-using Unity.CompilationPipeline.Common.Diagnostics;
 using UnityEngine;
 
 namespace PurrNet.Codegen
 {
     public static class RegisterSerializersProcessor
     {
-        // static void WriteHalf(BitPacker packer, Half oldvalue, Half newvalue)
         static bool IsDeltaWriteMethod(MethodDefinition method, out TypeReference type)
         {
             type = null;
@@ -102,7 +100,7 @@ namespace PurrNet.Codegen
             public MethodDefinition method;
         }
         
-        public static void HandleType(ModuleDefinition module, TypeDefinition type, bool isEditor, List<DiagnosticMessage> messages)
+        public static void HandleType(ModuleDefinition module, TypeDefinition type, bool isEditor, HashSet<TypeReference> toIgnoreForDelta, HashSet<TypeReference> toIgnoreForSerialization)
         {
             if (type.FullName == typeof(Packer).FullName) 
                 return;
@@ -140,6 +138,8 @@ namespace PurrNet.Codegen
                         type = writeType,
                         method = method
                     });
+                    
+                    toIgnoreForSerialization?.Add(writeType);
                 }
                 else if (IsReadMethod(method, out var readType))
                 {
@@ -151,6 +151,8 @@ namespace PurrNet.Codegen
                         type = readType,
                         method = method
                     });
+                    
+                    toIgnoreForSerialization?.Add(readType);
                 }
                 else if (IsDeltaWriteMethod(method, out var deltaWriteType))
                 {
@@ -163,6 +165,8 @@ namespace PurrNet.Codegen
                         type = deltaWriteType,
                         method = method
                     });
+                    
+                    toIgnoreForDelta?.Add(deltaWriteType);
                 }
                 else if (IsDeltaReadMethod(method, out var deltaReadType))
                 {
@@ -175,6 +179,8 @@ namespace PurrNet.Codegen
                         type = deltaReadType,
                         method = method
                     });
+                    
+                    toIgnoreForDelta?.Add(deltaReadType);
                 }
             }
             

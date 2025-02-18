@@ -18,13 +18,15 @@ namespace PurrNet.Packing
             DeltaPacker<T?>.RegisterReader(ReadDeltaNullable);
         }
 
-        private static void WriteDeltaNullable<T>(BitPacker packer, T? oldvalue, T? newvalue) where T : struct
+        private static bool WriteDeltaNullable<T>(BitPacker packer, T? oldvalue, T? newvalue) where T : struct
         {
             bool hasChanged = oldvalue.HasValue != newvalue.HasValue;
             Packer<bool>.Write(packer, hasChanged);
             
             if (hasChanged)
                 WriteNullable(packer, newvalue);
+            
+            return hasChanged;
         }
 
         private static void ReadDeltaNullable<T>(BitPacker packer, T? oldvalue, ref T? value) where T : struct
@@ -182,16 +184,17 @@ namespace PurrNet.Packing
         }
         
         [UsedByIL]
-        public static void WriteDisposableDeltaList<T>(this BitPacker packer, DisposableList<T> old, DisposableList<T> value)
+        public static bool WriteDisposableDeltaList<T>(this BitPacker packer, DisposableList<T> old, DisposableList<T> value)
         {
             if (Packer.AreEqual(old, value))
             {
                 Packer<bool>.Write(packer, true);
-                return;
+                return false;
             }
             
             Packer<bool>.Write(packer, false);
             WriteDisposableList(packer, value);
+            return true;
         }
 
         [UsedByIL]
@@ -390,7 +393,7 @@ namespace PurrNet.Packing
             DeltaPacker<T[]>.RegisterReader(ReadDeltaArray);
         }
         
-        private static void WriteDeltaList<T>(BitPacker packer, IList<T> oldvalue, IList<T> newvalue)
+        private static bool WriteDeltaList<T>(BitPacker packer, IList<T> oldvalue, IList<T> newvalue)
         {
             bool areEqual = Packer.AreEqual(oldvalue, newvalue);
             
@@ -398,6 +401,8 @@ namespace PurrNet.Packing
             
             if (!areEqual)
                 WriteList(packer, newvalue);
+            
+            return areEqual;
         }
 
         private static void ReadDeltaArray<T>(BitPacker packer, T[] oldvalue, ref T[] value)

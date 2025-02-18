@@ -13,6 +13,7 @@ namespace PurrNet
             bool requireServer = true, 
             bool excludeOwner = false,
             bool excludeSender = false,
+            CompressionLevel compressionLevel = CompressionLevel.None,
             float asyncTimeoutInSec = 5f) { }
     }
 }

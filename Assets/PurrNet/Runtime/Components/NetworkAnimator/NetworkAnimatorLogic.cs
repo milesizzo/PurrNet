@@ -39,7 +39,7 @@ namespace PurrNet
             if (!IsController(_ownerAuth))
                 return;
             
-            var data = NetAnimatorActionBatch.CreateReconcile(_animator, isIk);
+            var data = NetAnimatorActionBatch.CreateReconcile(_dontSyncHashes, _animator, isIk);
             
             if (isServer)
             {
@@ -63,7 +63,7 @@ namespace PurrNet
             if (!IsController(_ownerAuth))
                 return;
             
-            var data = NetAnimatorActionBatch.CreateReconcile(_animator, isIk);
+            var data = NetAnimatorActionBatch.CreateReconcile(_dontSyncHashes, _animator, isIk);
             
             if (isServer)
             {

@@ -38,5 +38,25 @@ namespace PurrNet.Packing
         {
             return HashCode.Combine(x, y, z);
         }
+        
+        public static HalfVector3 operator +(HalfVector3 a, HalfVector3 b)
+        {
+            return new HalfVector3
+            {
+                x = a.x + b.x,
+                y = a.y + b.y,
+                z = a.z + b.z
+            };
+        }
+        
+        public static HalfVector3 operator -(HalfVector3 a, HalfVector3 b)
+        {
+            return new HalfVector3
+            {
+                x = a.x - b.x,
+                y = a.y - b.y,
+                z = a.z - b.z
+            };
+        }
     }
 }

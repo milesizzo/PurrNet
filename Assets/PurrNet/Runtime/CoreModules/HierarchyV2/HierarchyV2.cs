@@ -291,10 +291,16 @@ namespace PurrNet.Modules
             {
                 var nt = identity.GetComponent<NetworkTransform>();
                 if (nt) nt.StartIgnoringParentChanges();
-                HierarchyPool.WalkThePath(parent.transform, idTrs, path);
+                HierarchyPool.WalkThePath(parent.transform, idTrs, path, true);
                 if (nt) nt.StopIgnoringParentChanges();
             }
-            else idTrs.SetParent(null, true);
+            else
+            {
+                var nt = identity.GetComponent<NetworkTransform>();
+                if (nt) nt.StartIgnoringParentChanges();
+                idTrs.SetParent(null, true);
+                if (nt) nt.StopIgnoringParentChanges();
+            }
 
             if (parent)
                 parent.AddDirectChild(first);
@@ -311,6 +317,17 @@ namespace PurrNet.Modules
 
         internal void OnParentChanged(NetworkIdentity identity, Transform parent)
         {
+            if (!_asServer)
+            {
+                if (!_playersManager.localPlayerId.HasValue)
+                    return;
+
+                bool hasAuthority = identity.HasChangeParentAuthority(_playersManager.localPlayerId.Value, _asServer);
+
+                if (!hasAuthority)
+                    return;
+            }
+
             var closestNid = ClosestParent(parent);
             var oldParent = identity.parent;
 
@@ -443,18 +460,21 @@ namespace PurrNet.Modules
             var createdNids = new DisposableList<NetworkIdentity>(16);
             CreatePrototype(data.prototype, createdNids.list);
 
+
             if (_asServer)
             {
+                bool isHost = IsServerHost();
+
                 foreach (var nid in createdNids)
                 {
-                    nid.SetIdentity(_manager, this, _sceneId, _asServer);
+                    nid.SetIdentity(_manager, this, _sceneId, _asServer, isHost);
                     RegisterIdentity(nid, false);
-                    nid.TryAddObserver(player);
 
-                    // I think it makes more sense to not trigger this event here
-                    // as it makes sense to assume they were already observers before the spawn
-                    /*nid.TriggerOnObserverAdded(player);
-                    onEarlyObserverAdded?.Invoke(player, nid);*/
+                    if (nid.TryAddObserver(player))
+                    {
+                        onObserverAdded?.Invoke(player, nid);
+                        _triggerLateObserverAdded.Add(new PlayerNid { player = player, nid = nid });
+                    }
                 }
 
                 if (createdNids.Count > 0)
@@ -468,7 +488,7 @@ namespace PurrNet.Modules
             {
                 foreach (var nid in createdNids)
                 {
-                    nid.SetIdentity(_manager, this, _sceneId, _asServer);
+                    nid.SetIdentity(_manager, this, _sceneId, _asServer, false);
                     RegisterIdentity(nid, false);
                 }
             }
@@ -614,7 +634,7 @@ namespace PurrNet.Modules
             _toCompleteNextFrame.Add(spawnId);
         }
 
-        private void OnGameObjectCreated(GameObject obj, GameObject prefab)
+        public void OnGameObjectCreated(GameObject obj, GameObject prefab)
         {
             if (!obj)
                 return;
@@ -633,7 +653,18 @@ namespace PurrNet.Modules
             Spawn(obj);
         }
 
-        public void Spawn(GameObject gameObject)
+        public void Spawn(GameObject gameObject, GameObject prefab)
+        {
+            if (!_manager.TryGetPrefabData(prefab, out var data, out var idx))
+            {
+                PurrLogger.LogError($"Failed to spawn object '{gameObject.name}'. No prefab data found.", gameObject);
+                return;
+            }
+
+            NetworkManager.SetupPrefabInfo(gameObject, idx, data.pooled);
+        }
+
+        internal void Spawn(GameObject gameObject)
         {
             if (!gameObject)
                 return;
@@ -792,6 +823,8 @@ namespace PurrNet.Modules
 
         private void SetupIdsLocally(NetworkIdentity root, ref NetworkID baseNid)
         {
+            bool isHost = IsServerHost();
+
             using var siblings = new DisposableList<NetworkIdentity>(16);
             root.GetComponents(siblings.list);
 
@@ -800,7 +833,7 @@ namespace PurrNet.Modules
             {
                 var sibling = siblings[i];
                 sibling.SetID(new NetworkID(baseNid, (uint)i));
-                sibling.SetIdentity(_manager, this, _sceneId, _asServer);
+                sibling.SetIdentity(_manager, this, _sceneId, _asServer, isHost);
                 RegisterIdentity(sibling, true);
             }
 
@@ -820,6 +853,8 @@ namespace PurrNet.Modules
 
         private void SpawnSceneObject(List<NetworkIdentity> children)
         {
+            bool isHost = IsServerHost();
+
             for (int i = 0; i < children.Count; i++)
             {
                 var child = children[i];
@@ -829,7 +864,7 @@ namespace PurrNet.Modules
                     child.SetID(id);
                     if (_asServer)
                     {
-                        child.SetIdentity(_manager, this, _sceneId, _asServer);
+                        child.SetIdentity(_manager, this, _sceneId, _asServer, isHost);
                         RegisterIdentity(child, true);
                     }
                 }
@@ -1016,7 +1051,6 @@ namespace PurrNet.Modules
             {
                 _spawnedIdentities.Remove(identity);
                 _spawnedIdentitiesMap.Remove(identity.id.Value);
-
                 onIdentityRemoved?.Invoke(identity);
             }
         }

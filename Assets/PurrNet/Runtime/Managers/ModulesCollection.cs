@@ -11,6 +11,7 @@ namespace PurrNet
         private readonly List<IDataListener> _dataListeners;
         private readonly List<IFixedUpdate> _fixedUpdatesListeners;
         private readonly List<IPreFixedUpdate> _preFixedUpdatesListeners;
+        private readonly List<IPostFixedUpdate> _posteFixedUpdatesListeners;
         private readonly List<IUpdate> _updateListeners;
         private readonly List<ICleanup> _cleanupListeners;
 
@@ -22,6 +23,7 @@ namespace PurrNet
             _modules = new List<INetworkModule>();
             _connectionListeners = new List<IConnectionListener>();
             _preFixedUpdatesListeners = new List<IPreFixedUpdate>();
+            _posteFixedUpdatesListeners = new List<IPostFixedUpdate>();
             _dataListeners = new List<IDataListener>();
             _updateListeners = new List<IUpdate>();
             _fixedUpdatesListeners = new List<IFixedUpdate>();
@@ -78,6 +80,9 @@ namespace PurrNet
                 
                 if (_modules[i] is IPreFixedUpdate preFixedUpdate)
                     _preFixedUpdatesListeners.Add(preFixedUpdate);
+                
+                if (_modules[i] is IPostFixedUpdate postFixedUpdate)
+                    _posteFixedUpdatesListeners.Add(postFixedUpdate);
             }
         }
         
@@ -116,6 +121,12 @@ namespace PurrNet
             for (int i = 0; i < _preFixedUpdatesListeners.Count; i++)
                 _preFixedUpdatesListeners[i].PreFixedUpdate();
         }
+        
+        public void TriggerOnPostFixedUpdate()
+        {
+            for (int i = 0; i < _posteFixedUpdatesListeners.Count; i++)
+                _posteFixedUpdatesListeners[i].PostFixedUpdate();
+        }
 
         public bool Cleanup()
         {
@@ -144,6 +155,7 @@ namespace PurrNet
             _fixedUpdatesListeners.Clear();
             _cleanupListeners.Clear();
             _preFixedUpdatesListeners.Clear();
+            _posteFixedUpdatesListeners.Clear();
         }
 
         public void AddModule(INetworkModule module)

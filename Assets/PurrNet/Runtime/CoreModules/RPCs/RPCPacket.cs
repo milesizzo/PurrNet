@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Net.Sockets;
 using PurrNet.Packing;
 using PurrNet.Transports;
 
@@ -7,6 +6,7 @@ namespace PurrNet
 {
     public interface IRpc
     {
+        public ByteData rpcData { get; set; }
         PlayerID senderPlayerId { get; }
     }
     
@@ -18,6 +18,12 @@ namespace PurrNet
         public byte rpcId;
         public ByteData data;
         
+        public ByteData rpcData
+        {
+            get { return data; }
+            set { data = value; }
+        }
+
         public PlayerID senderPlayerId => senderId;
     }
     
@@ -30,6 +36,12 @@ namespace PurrNet
         public byte childId;
         public ByteData data;
         
+        public ByteData rpcData
+        {
+            get { return data; }
+            set { data = value; }
+        }
+
         public PlayerID senderPlayerId => senderId;
     }
     
@@ -40,6 +52,12 @@ namespace PurrNet
         public PlayerID senderId;
         public ByteData data;
         
+        public ByteData rpcData
+        {
+            get { return data; }
+            set { data = value; }
+        }
+
         public PlayerID senderPlayerId => senderId;
     }
     

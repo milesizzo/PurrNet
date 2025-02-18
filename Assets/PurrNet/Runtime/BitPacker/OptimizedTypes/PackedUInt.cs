@@ -1,4 +1,5 @@
 using System;
+using PurrNet.Logging;
 using PurrNet.Modules;
 using UnityEngine;
 
@@ -185,30 +186,64 @@ namespace PurrNet.Packing
 
             return count;
         }
-        
-        const int PREFIX_BITS = 4;
+
+        private const int SEGMENTS = 8;
         const int TOTAL_BITS = 32;
-        const int MAX_COUNT = 1 << PREFIX_BITS;
-        const int CHUNK = TOTAL_BITS / MAX_COUNT;
+        const int CHUNK = TOTAL_BITS / SEGMENTS;
         
         [UsedByIL]
         public static void Write(BitPacker packer, PackedUInt value)
         {
             int trailingZeroes = CountLeadingZeroBits(value.value);
             int emptyChunks = trailingZeroes / CHUNK;
-            int fullBytes = Mathf.Clamp(MAX_COUNT - emptyChunks, 1, MAX_COUNT);
-            packer.WriteBits((ulong)(fullBytes - 1), PREFIX_BITS);
-            byte numberBits = (byte)(fullBytes * CHUNK);
-            packer.WriteBits(value.value, numberBits);
+            int segmentCount = SEGMENTS - emptyChunks;
+            int pointer = 0;
+            
+            if (segmentCount == 0)
+            {
+                packer.WriteBits(0, 1);
+                return;
+            }
+            
+            packer.WriteBits(1, 1);
+            
+            const uint mask = (uint.MaxValue >> (TOTAL_BITS - CHUNK));
+
+            while (segmentCount > 0)
+            {
+                uint isolated = (value.value >> pointer) & mask;
+                packer.WriteBits(isolated, CHUNK);
+                pointer += CHUNK;
+                
+                --segmentCount;
+                packer.WriteBits(segmentCount == 0 ? 0u : 1u, 1);
+            }
         }
 
         [UsedByIL]
         public static void Read(BitPacker packer, ref PackedUInt value)
         {
-            var fullBytes = packer.ReadBits(PREFIX_BITS) + 1;
-            int emptyChunks = MAX_COUNT - (int)fullBytes;
-            byte numberBits = (byte)(TOTAL_BITS - emptyChunks * CHUNK);
-            value = new PackedUInt((uint)packer.ReadBits(numberBits));
+            // Check initial control bit
+            if (packer.ReadBits(1) == 0)
+            {
+                value.value = 0;
+                return;
+            }
+
+            uint result = 0;
+            int pointer = 0;
+            bool continueReading;
+
+            do
+            {
+                uint chunk = (uint)packer.ReadBits(CHUNK);
+                result |= chunk << pointer;
+                pointer += CHUNK;
+        
+                continueReading = packer.ReadBits(1) == 1;
+            } while (continueReading);
+
+            value.value = result;
         }
         
         [UsedByIL]

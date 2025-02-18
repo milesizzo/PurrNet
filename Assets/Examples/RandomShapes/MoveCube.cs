@@ -1,6 +1,8 @@
+using System;
 using PurrNet;
 using PurrNet.Logging;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class MoveCube : NetworkBehaviour
 {
@@ -43,6 +45,21 @@ public class MoveCube : NetworkBehaviour
     protected override void OnDespawned(bool asServer)
     {
         PurrLogger.Log("Despawned as " + (asServer ? "server" : "client"));
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!isController)
+            return;
+        transform.SetParent(other.transform);
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!isController)
+            return;
+        if (transform.parent == other.transform)
+            transform.SetParent(null);
     }
 
     void Update()

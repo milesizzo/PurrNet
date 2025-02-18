@@ -19,7 +19,7 @@ namespace PurrNet
         [Tooltip("Parameters names that should not be synced")]
         private List<string> _dontSyncParameters = new List<string>();
 
-        readonly HashSet<int> _sontSyncHashes = new HashSet<int>();
+        readonly HashSet<int> _dontSyncHashes = new HashSet<int>();
         
         /// <summary>
         /// If true the owner has authority over this animator, if no owner is set it is controlled by the server
@@ -42,7 +42,13 @@ namespace PurrNet
         private void Awake()
         {
             foreach (var param in _dontSyncParameters)
-                _sontSyncHashes.Add(Animator.StringToHash(param));
+                _dontSyncHashes.Add(Animator.StringToHash(param));
+
+            foreach (var parameter in _animator.parameters)
+            {
+                if (_animator.IsParameterControlledByCurve(parameter.nameHash))
+                    _dontSyncHashes.Add(parameter.nameHash);
+            }
         }
 
         void OnEnable()
