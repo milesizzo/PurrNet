@@ -44,13 +44,13 @@ namespace PurrNet.Modules
         readonly ScenePlayersModule _scenePlayers;
         readonly HierarchyFactory _hierarchy;
 
-        readonly ScenesModule _scenes;
+        readonly IScenesModule _scenes;
         readonly Dictionary<SceneID, SceneOwnership> _sceneOwnerships = new Dictionary<SceneID, SceneOwnership>();
 
         private bool _asServer;
 
         public GlobalOwnershipModule(HierarchyFactory hierarchy,
-            PlayersManager players, ScenePlayersModule scenePlayers, ScenesModule scenes)
+            PlayersManager players, ScenePlayersModule scenePlayers, IScenesModule scenes)
         {
             _hierarchy = hierarchy;
             _scenes = scenes;
@@ -62,9 +62,7 @@ namespace PurrNet.Modules
         {
             _asServer = asServer;
 
-            var scenes = _scenes.sceneStates;
-
-            foreach (var (id, sceneState) in scenes)
+            foreach (var (id, sceneState) in _scenes.sceneStates)
             {
                 if (sceneState.scene.isLoaded)
                     OnSceneLoaded(id, asServer);

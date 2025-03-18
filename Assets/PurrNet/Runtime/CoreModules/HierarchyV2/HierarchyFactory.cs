@@ -6,7 +6,7 @@ namespace PurrNet.Modules
 {
     public class HierarchyFactory : INetworkModule, IFixedUpdate, IPreFixedUpdate, ICleanup
     {
-        readonly ScenesModule _scenes;
+        readonly IScenesModule _scenes;
 
         readonly NetworkManager _manager;
 
@@ -18,7 +18,7 @@ namespace PurrNet.Modules
 
         readonly PlayersManager _playersManager;
 
-        public HierarchyFactory(NetworkManager manager, ScenesModule scenes, ScenePlayersModule scenePlayersModule,
+        public HierarchyFactory(NetworkManager manager, IScenesModule scenes, ScenePlayersModule scenePlayersModule,
             PlayersManager playersManager)
         {
             _manager = manager;
@@ -39,9 +39,7 @@ namespace PurrNet.Modules
 
         public void Enable(bool asServer)
         {
-            var scenes = _scenes.sceneStates;
-
-            foreach (var (id, sceneState) in scenes)
+            foreach (var (id, sceneState) in _scenes.sceneStates)
             {
                 if (sceneState.scene.isLoaded)
                     OnPreSceneLoaded(id, asServer);
@@ -69,7 +67,7 @@ namespace PurrNet.Modules
                 return;
             }
 
-            if (!_scenes.TryGetSceneState(scene, out var sceneState))
+            if (!_scenes.sceneStates.TryGetValue(scene, out var sceneState))
             {
                 PurrLogger.LogError($"Scene {scene} doesn't exist; trying to create hierarchy module for it?");
                 return;

@@ -48,18 +48,8 @@ namespace PurrNet.Modules
 
     internal struct LoadSceneAction
     {
-        public int buildIndex;
         public SceneID sceneID;
-        public PurrSceneSettings parameters;
-
-        public LoadSceneParameters GetLoadSceneParameters()
-        {
-            return new LoadSceneParameters
-            {
-                loadSceneMode = parameters.mode,
-                localPhysicsMode = parameters.physicsMode
-            };
-        }
+        public PurrSceneSettings settings;
     }
 
     internal struct UnloadSceneAction
@@ -116,7 +106,7 @@ namespace PurrNet.Modules
                 switch (action.type)
                 {
                     case SceneActionType.Load:
-                        if (action.loadSceneAction.parameters.mode == LoadSceneMode.Single)
+                        if (action.loadSceneAction.settings.mode == LoadSceneMode.Single)
                             _sceneIds.Clear();
                         _sceneIds.Add(action.loadSceneAction.sceneID);
                         break;

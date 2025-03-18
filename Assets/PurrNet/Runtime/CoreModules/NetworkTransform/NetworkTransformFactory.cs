@@ -5,7 +5,7 @@ namespace PurrNet.Modules
 {
     public class NetworkTransformFactory : INetworkModule, IPostFixedUpdate
     {
-        readonly ScenesModule _scenes;
+        readonly IScenesModule _scenes;
         readonly ScenePlayersModule _scenePlayers;
         readonly PlayersBroadcaster _broadcaster;
         readonly NetworkManager _manager;
@@ -13,7 +13,7 @@ namespace PurrNet.Modules
         readonly List<NetworkTransformModule> _rawModules = new();
         readonly Dictionary<SceneID, NetworkTransformModule> _modules = new();
 
-        public NetworkTransformFactory(ScenesModule scenes, ScenePlayersModule scenePlayers,
+        public NetworkTransformFactory(IScenesModule scenes, ScenePlayersModule scenePlayers,
             PlayersBroadcaster broadcaster, NetworkManager manager)
         {
             _scenes = scenes;
@@ -24,9 +24,7 @@ namespace PurrNet.Modules
 
         public void Enable(bool asServer)
         {
-            var scenes = _scenes.sceneStates;
-
-            foreach (var (id, sceneState) in scenes)
+            foreach (var (id, sceneState) in _scenes.sceneStates)
             {
                 if (sceneState.scene.isLoaded)
                     OnPreSceneLoaded(id, asServer);

@@ -151,6 +151,8 @@ namespace PurrNet
         /// </summary>
         public IPrefabProvider prefabProvider { get; private set; }
 
+        public IScenesModuleFactory scenesModuleFactory { get; private set; }
+
         /// <summary>
         /// The visibility rules of the network manager.
         /// </summary>
@@ -333,6 +335,17 @@ namespace PurrNet
             }
 
             prefabProvider = provider;
+        }
+
+        public void SetScenesModuleFactory(IScenesModuleFactory factory)
+        {
+            if (!isOffline)
+            {
+                PurrLogger.LogError("Failed to update scenes module factory since a connection is active.");
+                return;
+            }
+
+            scenesModuleFactory = factory;
         }
 
         /// <summary>
@@ -640,7 +653,7 @@ namespace PurrNet
         /// Defaults to the server scene module if the server is active.
         /// Otherwise it defaults to the client scene module.
         /// </summary>
-        public ScenesModule sceneModule => _serverSceneModule ?? _clientSceneModule;
+        public IScenesModule sceneModule => _serverSceneModule ?? _clientSceneModule;
 
         /// <summary>
         /// The players manager of the network manager.
@@ -678,8 +691,8 @@ namespace PurrNet
 
         public AuthenticationLayer authenticator => _authenticator;
 
-        private ScenesModule _clientSceneModule;
-        private ScenesModule _serverSceneModule;
+        private IScenesModule _clientSceneModule;
+        private IScenesModule _serverSceneModule;
 
         private PlayersManager _clientPlayersManager;
         private PlayersManager _serverPlayersManager;
@@ -855,7 +868,7 @@ namespace PurrNet
                 _serverPlayersBroadcast = playersBroadcast;
             else _clientPlayersBroadcast = playersBroadcast;
 
-            var scenesModule = new ScenesModule(this, playersManager);
+            var scenesModule = (scenesModuleFactory ?? new UnityScenesModuleFactory()).Create(this, playersManager);
 
             if (asServer)
                 _serverSceneModule = scenesModule;
@@ -1086,7 +1099,7 @@ namespace PurrNet
         /// <returns>Whether the scene was found.</returns>
         public bool TryGetScene(SceneID sceneID, out Scene scene)
         {
-            if (sceneModule.TryGetSceneState(sceneID, out var state))
+            if (sceneModule.sceneStates.TryGetValue(sceneID, out var state))
             {
                 scene = state.scene;
                 return true;
