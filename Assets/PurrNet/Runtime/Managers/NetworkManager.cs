@@ -65,6 +65,10 @@ namespace PurrNet
         [SerializeField]
         private bool _stopPlayingOnDisconnect;
 
+        [Tooltip("Use the default UnityScenesModule for loading/unloading scenes")]
+        [SerializeField]
+        private bool _constructUnityScenesModule = true;
+
         [Header("Auto Start Settings")]
         [Tooltip("The flags to determine when the server should automatically start.")]
         [SerializeField]
@@ -642,7 +646,7 @@ namespace PurrNet
         /// Defaults to the server scene module if the server is active.
         /// Otherwise it defaults to the client scene module.
         /// </summary>
-        public ScenesManager sceneModule => _serverSceneModule ?? _clientSceneModule;
+        public ScenesManager scenesManager => _serverScenesManager ?? _clientScenesManager;
 
         /// <summary>
         /// The players manager of the network manager.
@@ -673,8 +677,8 @@ namespace PurrNet
 
         public AuthenticationLayer authenticator => _authenticator;
 
-        private ScenesManager _clientSceneModule;
-        private ScenesManager _serverSceneModule;
+        private ScenesManager _clientScenesManager;
+        private ScenesManager _serverScenesManager;
 
         private PlayersManager _clientPlayersManager;
         private PlayersManager _serverPlayersManager;
@@ -848,41 +852,41 @@ namespace PurrNet
                 _serverPlayersBroadcast = playersBroadcast;
             else _clientPlayersBroadcast = playersBroadcast;
 
-            var scenesModule = new ScenesManager(this, playersManager);
+            var scenesManager = new ScenesManager(this, playersManager);
 
             if (asServer)
             {
-                if (_serverSceneModule != null)
+                if (_serverScenesManager != null)
                 {
-                    _serverSceneModule.onPlayerJoinedScene -= OnPlayerJoinedScene;
-                    _serverSceneModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
-                    _serverSceneModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
-                    _serverSceneModule.onPlayerLeftScene -= OnPlayerLeftScene;
+                    _serverScenesManager.onPlayerJoinedScene -= OnPlayerJoinedScene;
+                    _serverScenesManager.onPlayerLoadedScene -= OnPlayerLoadedScene;
+                    _serverScenesManager.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
+                    _serverScenesManager.onPlayerLeftScene -= OnPlayerLeftScene;
                 }
 
-                _serverSceneModule = scenesModule;
+                _serverScenesManager = scenesManager;
 
-                _serverSceneModule.onPlayerJoinedScene += OnPlayerJoinedScene;
-                _serverSceneModule.onPlayerLoadedScene += OnPlayerLoadedScene;
-                _serverSceneModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
-                _serverSceneModule.onPlayerLeftScene += OnPlayerLeftScene;
+                _serverScenesManager.onPlayerJoinedScene += OnPlayerJoinedScene;
+                _serverScenesManager.onPlayerLoadedScene += OnPlayerLoadedScene;
+                _serverScenesManager.onPlayerUnloadedScene += OnPlayerUnloadedScene;
+                _serverScenesManager.onPlayerLeftScene += OnPlayerLeftScene;
             }
             else
             {
-                if (_clientSceneModule != null)
+                if (_clientScenesManager != null)
                 {
-                    _clientSceneModule.onPlayerJoinedScene -= OnPlayerJoinedScene;
-                    _clientSceneModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
-                    _clientSceneModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
-                    _clientSceneModule.onPlayerLeftScene -= OnPlayerLeftScene;
+                    _clientScenesManager.onPlayerJoinedScene -= OnPlayerJoinedScene;
+                    _clientScenesManager.onPlayerLoadedScene -= OnPlayerLoadedScene;
+                    _clientScenesManager.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
+                    _clientScenesManager.onPlayerLeftScene -= OnPlayerLeftScene;
                 }
 
-                _clientSceneModule = sceneModule;
+                _clientScenesManager = scenesManager;
 
-                _clientSceneModule.onPlayerJoinedScene += OnPlayerJoinedScene;
-                _clientSceneModule.onPlayerLoadedScene += OnPlayerLoadedScene;
-                _clientSceneModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
-                _clientSceneModule.onPlayerLeftScene += OnPlayerLeftScene;
+                _clientScenesManager.onPlayerJoinedScene += OnPlayerJoinedScene;
+                _clientScenesManager.onPlayerLoadedScene += OnPlayerLoadedScene;
+                _clientScenesManager.onPlayerUnloadedScene += OnPlayerUnloadedScene;
+                _clientScenesManager.onPlayerLeftScene += OnPlayerLeftScene;
             }
 
             playersManager.SetBroadcaster(playersBroadcast);
@@ -894,11 +898,11 @@ namespace PurrNet
             modules.AddModule(authModule);
             modules.AddModule(networkCookies);
 
-            modules.AddModule(scenesModule);
+            modules.AddModule(scenesManager);
 
-            var hierarchyV2 = new HierarchyFactory(this, scenesModule, playersManager);
-            var ownershipModule = new GlobalOwnershipModule(hierarchyV2, playersManager, scenesModule);
-            var rpcModule = new RPCModule(this, playersManager, hierarchyV2, ownershipModule, scenesModule);
+            var hierarchyV2 = new HierarchyFactory(this, scenesManager, playersManager);
+            var ownershipModule = new GlobalOwnershipModule(hierarchyV2, playersManager, scenesManager);
+            var rpcModule = new RPCModule(this, playersManager, hierarchyV2, ownershipModule, scenesManager);
 
             modules.AddModule(ownershipModule);
             modules.AddModule(rpcModule);
@@ -906,11 +910,17 @@ namespace PurrNet
             modules.AddModule(hierarchyV2);
 
             var networkTransform =
-                new NetworkTransformFactory(scenesModule, playersBroadcast, this, hierarchyV2);
-            var colliderRollback = new ColliderRollbackFactory(tickManager, scenesModule);
+                new NetworkTransformFactory(scenesManager, playersBroadcast, this, hierarchyV2);
+            var colliderRollback = new ColliderRollbackFactory(tickManager, scenesManager);
 
             modules.AddModule(networkTransform);
             modules.AddModule(colliderRollback);
+
+            if (_constructUnityScenesModule)
+            {
+                var unityScenesModule = new UnityScenesModule(this, playersManager, scenesManager);
+                modules.AddModule(unityScenesModule);
+            }
 
             RenewSubscriptions(asServer);
         }
@@ -1047,7 +1057,7 @@ namespace PurrNet
         /// <returns>Whether the sceneID is linked to the unity scene.</returns>
         public bool MatchesSceneID(Scene scene, SceneID sceneID)
         {
-            if (sceneModule.TryGetSceneID(scene, out var id))
+            if (scenesManager.TryGetSceneID(scene, out var id))
                 return id == sceneID;
             return false;
         }
@@ -1060,7 +1070,7 @@ namespace PurrNet
         /// <returns>Whether the scene ID was found.</returns>
         public bool TryGetSceneID(Scene scene, out SceneID sceneID)
         {
-            return sceneModule.TryGetSceneID(scene, out sceneID);
+            return scenesManager.TryGetSceneID(scene, out sceneID);
         }
 
         /// <summary>
@@ -1071,7 +1081,7 @@ namespace PurrNet
         /// <returns>Whether the scene was found.</returns>
         public bool TryGetScene(SceneID sceneID, out Scene scene)
         {
-            return sceneModule.TryGetScene(sceneID, out scene);
+            return scenesManager.TryGetScene(sceneID, out scene);
         }
 
         /// <summary>
@@ -1082,7 +1092,7 @@ namespace PurrNet
         /// <returns></returns>
         public bool TryGetPlayerScenes(PlayerID playerId, out SceneID[] scenes)
         {
-            return sceneModule.TryGetPlayerScenes(playerId, out scenes);
+            return scenesManager.TryGetPlayerScenes(playerId, out scenes);
         }
 
         /// <summary>
