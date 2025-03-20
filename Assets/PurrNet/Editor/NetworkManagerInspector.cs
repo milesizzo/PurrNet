@@ -13,6 +13,7 @@ namespace PurrNet.Editor
         private SerializedProperty _startServerFlags;
         private SerializedProperty _startClientFlags;
         private SerializedProperty _stopPlayingOnDisconnect;
+        private SerializedProperty _constructUnityScenesModule;
         private SerializedProperty _cookieScope;
         private SerializedProperty _dontDestroyOnLoad;
         private SerializedProperty _networkPrefabs;
@@ -41,6 +42,7 @@ namespace PurrNet.Editor
             _startServerFlags = serializedObject.FindProperty("_startServerFlags");
             _startClientFlags = serializedObject.FindProperty("_startClientFlags");
             _stopPlayingOnDisconnect = serializedObject.FindProperty("_stopPlayingOnDisconnect");
+            _constructUnityScenesModule = serializedObject.FindProperty("_constructUnityScenesModule");
             _cookieScope = serializedObject.FindProperty("_cookieScope");
             _dontDestroyOnLoad = serializedObject.FindProperty("_dontDestroyOnLoad");
             _networkPrefabs = serializedObject.FindProperty("_networkPrefabs");
@@ -192,6 +194,7 @@ namespace PurrNet.Editor
             GUI.enabled = isDisconnected;
             RenderTickSlider();
             EditorGUILayout.PropertyField(_stopPlayingOnDisconnect);
+            EditorGUILayout.PropertyField(_constructUnityScenesModule);
             EditorGUILayout.PropertyField(_patchLingeringProcessBug);
             GUI.enabled = true;
 
