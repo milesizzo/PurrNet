@@ -46,17 +46,17 @@ namespace PurrNet
 
         public override void Subscribe(NetworkManager manager, bool asServer)
         {
-            if (asServer && manager.TryGetModule(out IScenesManager scenesModule, true))
+            if (asServer && manager.TryGetModule(out IScenesManager scenesManager, true))
             {
-                scenesModule.onPlayerLoadedScene += OnPlayerLoadedScene;
+                scenesManager.onPlayerLoadedScene += OnPlayerLoadedScene;
 
-                if (!manager.TryGetModule(out ScenesManager scenes, true))
+                if (!manager.TryGetModule(out IScenesManager scenes, true))
                     return;
 
                 if (!scenes.TryGetSceneID(gameObject.scene, out var sceneID))
                     return;
 
-                if (scenesModule.TryGetPlayersInScene(sceneID, out var players))
+                if (scenesManager.TryGetPlayersInScene(sceneID, out var players))
                 {
                     foreach (var player in players)
                         OnPlayerLoadedScene(player, sceneID, true);
@@ -66,22 +66,22 @@ namespace PurrNet
 
         public override void Unsubscribe(NetworkManager manager, bool asServer)
         {
-            if (asServer && manager.TryGetModule(out IScenesManager scenesModule, true))
-                scenesModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
+            if (asServer && manager.TryGetModule(out IScenesManager scenesManager, true))
+                scenesManager.onPlayerLoadedScene -= OnPlayerLoadedScene;
         }
 
         private void OnDestroy()
         {
             if (NetworkManager.main &&
-                NetworkManager.main.TryGetModule(out IScenesManager scenesModule, true))
-                scenesModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
+                NetworkManager.main.TryGetModule(out IScenesManager scenesManager, true))
+                scenesManager.onPlayerLoadedScene -= OnPlayerLoadedScene;
         }
 
         private void OnPlayerLoadedScene(PlayerID player, SceneID scene, bool asServer)
         {
             var main = NetworkManager.main;
 
-            if (!main || !main.TryGetModule(out ScenesManager scenes, true))
+            if (!main || !main.TryGetModule(out IScenesManager scenes, true))
                 return;
 
             var unityScene = gameObject.scene;

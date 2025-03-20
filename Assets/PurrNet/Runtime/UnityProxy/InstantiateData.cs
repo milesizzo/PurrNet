@@ -156,9 +156,9 @@ namespace PurrNet
                 return false;
             }
 
-            if (!manager.TryGetModule<ScenesManager>(isServer, out var scenes))
+            if (!manager.TryGetModule<IScenesManager>(isServer, out var scenes))
             {
-                PurrLogger.LogError($"Can't spawn object because NetworkManager doesn't contain a `ScenesModule`.\n" +
+                PurrLogger.LogError($"Can't spawn object because NetworkManager doesn't contain a `ScenesManager`.\n" +
                                     "Modules are only registered once the NetworkManager is started.\n" +
                                     "You can bypass spawning via `UnityProxy.InstantiateDirectly`.");
                 result = default;

@@ -65,6 +65,10 @@ namespace PurrNet.Modules
 
         bool IsPlayerLoadedInScene(PlayerID player, SceneID scene);
 
+        void AddPlayerToScene(PlayerID playerID, SceneID sceneID);
+
+        void RemovePlayerFromScene(PlayerID playerID, SceneID sceneID);
+
         IEnumerable<(SceneID, Scene)> scenes { get; }
 
         /// <summary>

@@ -642,11 +642,11 @@ namespace PurrNet
         }
 
         /// <summary>
-        /// The scene module of the network manager.
+        /// The scenes manager of the network manager.
         /// Defaults to the server scene module if the server is active.
         /// Otherwise it defaults to the client scene module.
         /// </summary>
-        public ScenesManager scenesManager => _serverScenesManager ?? _clientScenesManager;
+        public IScenesManager scenesManager => _serverScenesManager ?? _clientScenesManager;
 
         /// <summary>
         /// The players manager of the network manager.
@@ -677,8 +677,8 @@ namespace PurrNet
 
         public AuthenticationLayer authenticator => _authenticator;
 
-        private ScenesManager _clientScenesManager;
-        private ScenesManager _serverScenesManager;
+        private IScenesManager _clientScenesManager;
+        private IScenesManager _serverScenesManager;
 
         private PlayersManager _clientPlayersManager;
         private PlayersManager _serverPlayersManager;
