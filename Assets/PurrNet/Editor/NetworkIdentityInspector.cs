@@ -1,3 +1,4 @@
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,6 +9,8 @@ namespace PurrNet.Editor
     [CanEditMultipleObjects]
 #if TRI_INSPECTOR_PACKAGE
     public class NetworkIdentityInspector : TriInspector.Editors.TriEditor
+#elif ODIN_INSPECTOR
+    public class NetworkIdentityInspector : Sirenix.OdinInspector.Editor.OdinEditor
 #else
     public class NetworkIdentityInspector : UnityEditor.Editor
 #endif
@@ -15,7 +18,7 @@ namespace PurrNet.Editor
         private SerializedProperty _networkRules;
         private SerializedProperty _visitiblityRules;
 
-#if TRI_INSPECTOR_PACKAGE
+#if TRI_INSPECTOR_PACKAGE || ODIN_INSPECTOR
         protected override void OnEnable()
 #else
         protected virtual void OnEnable()
@@ -52,6 +55,7 @@ namespace PurrNet.Editor
             base.OnInspectorGUI();
 
             DrawIdentityInspector();
+            DrawPurrButtons(identity);
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -169,12 +173,12 @@ namespace PurrNet.Editor
             GUI.enabled = false;
 
             EditorGUILayout.BeginVertical("box", GUILayout.ExpandWidth(false));
-            
+
             EditorGUILayout.LabelField($"prefabId: {identity.prefabId}");
             EditorGUILayout.LabelField($"componentIndex: {identity.componentIndex}");
             EditorGUILayout.LabelField($"shouldBePooled: {identity.shouldBePooled}");
             EditorGUILayout.ObjectField("parent", identity.parent, typeof(NetworkIdentity), true);
-            
+
             string path = "";
 
             if (identity.invertedPathToNearestParent != null)
@@ -189,7 +193,7 @@ namespace PurrNet.Editor
 
             EditorGUILayout.LabelField($"pathToNearestParent: {path}");
             EditorGUILayout.LabelField($"Direct Children ({identity.directChildren?.Count ?? 0}):");
-            
+
             if (identity.directChildren != null)
             {
                 EditorGUI.indentLevel++;
@@ -224,6 +228,54 @@ namespace PurrNet.Editor
             }
 
             EditorGUILayout.EndFoldoutHeaderGroup();
+        }
+
+        protected void DrawPurrButtons(NetworkIdentity targetIdentity)
+        {
+            if (targetIdentity == null)
+                return;
+
+            GUILayout.Space(5);
+
+            MethodInfo[] methods = targetIdentity.GetType().GetMethods(
+                BindingFlags.Instance |
+                BindingFlags.Static |
+                BindingFlags.Public |
+                BindingFlags.NonPublic);
+
+            bool foundAnyButtons = false;
+
+            foreach (MethodInfo method in methods)
+            {
+                var buttonAttr = method.GetCustomAttribute<PurrButtonAttribute>();
+
+                if (buttonAttr != null)
+                {
+                    if (!foundAnyButtons)
+                    {
+                        EditorGUILayout.LabelField("PurrButtons", EditorStyles.boldLabel);
+                        foundAnyButtons = true;
+                    }
+
+                    string buttonName = !string.IsNullOrEmpty(buttonAttr.ButtonName)
+                        ? buttonAttr.ButtonName
+                        : ObjectNames.NicifyVariableName(method.Name);
+
+                    if (GUILayout.Button(buttonName))
+                    {
+                        ParameterInfo[] parameters = method.GetParameters();
+
+                        if (parameters.Length == 0)
+                        {
+                            method.Invoke(targetIdentity, null);
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"Cannot invoke method '{method.Name}' with PurrButton attribute because it has parameters. PurrButton only works with parameterless methods.");
+                        }
+                    }
+                }
+            }
         }
     }
 }

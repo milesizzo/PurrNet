@@ -14,6 +14,19 @@ namespace PurrNet.Authentication
         [CanBeNull] public string cookie;
     }
 
+    public struct AuthenticationRequestData : IPackedAuto
+    {
+        /// <summary>
+        /// This will be used to retrieve the same PlayerID from past sessions if present.
+        /// </summary>
+        [CanBeNull] public string cookie;
+
+        /// <summary>
+        /// The payload to be validated.
+        /// </summary>
+        public ByteData payload;
+    }
+
     public struct AuthenticationRequest<T> : IPackedAuto
     {
         /// <summary>
@@ -68,11 +81,13 @@ namespace PurrNet.Authentication
 
         public event Action<Connection, AuthenticationResponse> onAuthenticationComplete;
 
-        public abstract void Subscribe(BroadcastModule broadcastModule);
+        public abstract void Subscribe(BroadcastModule broadcastModule, PlayersManager players);
 
-        public abstract void Unsubscribe(BroadcastModule broadcastModule);
+        public abstract void Unsubscribe(BroadcastModule broadcastModule, PlayersManager players);
 
         public abstract void SendClientPayload(BroadcastModule broadcastModule, CookiesModule cookies);
+
+        protected abstract void UnAuthenticateClient(Connection conn);
 
         protected void TrigerAuthenticationComplete(Connection conn, AuthenticationResponse response)
         {
@@ -89,14 +104,26 @@ namespace PurrNet.Authentication
 
     public abstract class AuthenticationBehaviour<T> : AuthenticationLayer
     {
-        public override void Subscribe(BroadcastModule broadcastModule)
+        private PlayersManager _players;
+
+        public override void Subscribe(BroadcastModule broadcastModule, PlayersManager players)
         {
-            broadcastModule.Subscribe<AuthenticationRequest<T>>(OnPayload);
+            _players = players;
+
+            broadcastModule.Subscribe<AuthenticationRequestData>(OnPayload);
+            players.onPrePlayerLeft += UnAuthenticatePlayer;
         }
 
-        public override void Unsubscribe(BroadcastModule broadcastModule)
+        public override void Unsubscribe(BroadcastModule broadcastModule, PlayersManager players)
         {
-            broadcastModule.Unsubscribe<AuthenticationRequest<T>>(OnPayload);
+            broadcastModule.Unsubscribe<AuthenticationRequestData>(OnPayload);
+            players.onPrePlayerLeft -= UnAuthenticatePlayer;
+        }
+
+        private void UnAuthenticatePlayer(PlayerID player, bool asserver)
+        {
+            if (_players.TryGetConnection(player, out var conn))
+                UnAuthenticateClient(conn);
         }
 
         public override async void SendClientPayload(BroadcastModule broadcastModule, CookiesModule cookies)
@@ -105,7 +132,14 @@ namespace PurrNet.Authentication
             {
                 var payload = await GetClientPlayload();
                 payload.cookie ??= cookies.GetOrSet("client_connection_session", Guid.NewGuid().ToString());
-                broadcastModule.SendToServer(payload);
+                using var packer = BitPackerPool.Get();
+                Packer<T>.Write(packer, payload.payload);
+                var data = new AuthenticationRequestData
+                {
+                    cookie = payload.cookie,
+                    payload = packer.ToByteData()
+                };
+                broadcastModule.SendToServer(data);
             }
             catch (Exception e)
             {
@@ -113,11 +147,15 @@ namespace PurrNet.Authentication
             }
         }
 
-        private async void OnPayload(Connection conn, AuthenticationRequest<T> data, bool asServer)
+        private async void OnPayload(Connection conn, AuthenticationRequestData data, bool asServer)
         {
             try
             {
-                var result = await ValidateClientPayload(data.payload);
+                using var packer = BitPackerPool.Get(data.payload);
+                T payload = default;
+                Packer<T>.Read(packer, ref payload);
+
+                var result = await ValidateClientPayload(conn, payload);
                 if (result.cookie == null && data.cookie != null)
                     result.cookie = data.cookie;
                 TrigerAuthenticationComplete(conn, result);
@@ -140,8 +178,9 @@ namespace PurrNet.Authentication
         /// Once the client payload is received, this method is called to validate the payload.
         /// This only runs on the server.
         /// </summary>
+        /// <param name="conn">The connection of the client.</param>
         /// <param name="payload">The client payload to be validated.</param>
         /// <returns>The result of the validation.</returns>
-        protected abstract Task<AuthenticationResponse> ValidateClientPayload(T payload);
+        protected abstract Task<AuthenticationResponse> ValidateClientPayload(Connection conn, T payload);
     }
 }

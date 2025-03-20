@@ -398,23 +398,25 @@ namespace PurrNet.Modules
             if (!_connectionToPlayerId.TryGetValue(conn, out var player))
                 return;
 
+            onPrePlayerLeft?.Invoke(player, _asServer);
+
             _players.Remove(player);
             _playerToConnection.Remove(player);
             _connectionToPlayerId.Remove(conn);
 
-            onPrePlayerLeft?.Invoke(player, _asServer);
             onPlayerLeft?.Invoke(player, _asServer);
             onPostPlayerLeft?.Invoke(player, _asServer);
         }
 
         private void UnregisterPlayer(PlayerID playerId)
         {
+            onPrePlayerLeft?.Invoke(playerId, _asServer);
+
             if (_playerToConnection.TryGetValue(playerId, out var conn))
                 _connectionToPlayerId.Remove(conn);
             _players.Remove(playerId);
             _playerToConnection.Remove(playerId);
 
-            onPrePlayerLeft?.Invoke(playerId, _asServer);
             onPlayerLeft?.Invoke(playerId, _asServer);
             onPostPlayerLeft?.Invoke(playerId, _asServer);
         }

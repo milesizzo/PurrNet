@@ -332,6 +332,16 @@ namespace PurrNet.Modules
                     return;
             }
 
+            if (parent && parent.gameObject.scene.handle != _scene.handle)
+            {
+                PurrLogger.LogError($"Change parent failed for '{identity.gameObject.name}'.\n" +
+                                    $"Moving networked objects to a different scene is not supported.\n" +
+                                    $"Original scene: `{parent.gameObject.scene.name}`, new parent's scene: `{_scene.name}`\n" +
+                                    $"Try moving the player spawner to it's own game object in the scene or toggle off `DontDestroyOnLoad` on the `NetworkManager`.",
+                    identity.gameObject);
+                return;
+            }
+
             var closestNid = ClosestParent(parent);
             var oldParent = identity.parent;
 
@@ -476,6 +486,7 @@ namespace PurrNet.Modules
                     if (nid.TryAddObserver(player))
                     {
                         onObserverAdded?.Invoke(player, nid);
+                        nid.TriggerOnEarlyObserverAdded(player);
                         _triggerLateObserverAdded.Add(new PlayerNid { player = player, nid = nid });
                     }
                 }
@@ -592,6 +603,7 @@ namespace PurrNet.Modules
                         {
                             var nid = children[i];
                             onObserverAdded?.Invoke(player, nid);
+                            nid.TriggerOnEarlyObserverAdded(player);
                             _triggerLateObserverAdded.Add(new PlayerNid { player = player, nid = nid });
                         }
                     }
@@ -993,6 +1005,32 @@ namespace PurrNet.Modules
             actual.Clear();
         }
 
+        static void SetLocalPosAndRot(Transform t, Vector3 pos, Quaternion rot)
+        {
+            var cc = t.GetComponent<CharacterController>();
+            bool wasCCEnabled = cc && cc.enabled;
+
+            if (wasCCEnabled)
+                cc.enabled = false;
+
+            t.SetLocalPositionAndRotation(pos, rot);
+
+            if (t.TryGetComponent<Rigidbody>(out var rb))
+            {
+                rb.position = t.position;
+                rb.rotation = t.rotation;
+            }
+
+            if (t.TryGetComponent<Rigidbody2D>(out var rb2d))
+            {
+                rb2d.position = t.position;
+                rb2d.rotation = t.rotation.eulerAngles.z;
+            }
+
+            if (wasCCEnabled)
+                cc.enabled = true;
+        }
+
         public GameObject CreatePrototype(GameObjectPrototype prototype, List<NetworkIdentity> createdNids)
         {
             var pair = new PoolPair(_scenePool, _prefabsPool);
@@ -1009,7 +1047,7 @@ namespace PurrNet.Modules
                 if (TryGetIdentity(prototype.parentID.Value, out var parent))
                 {
                     result.transform.SetParent(parent.transform, false);
-                    resultTrs.SetLocalPositionAndRotation(prototype.position, prototype.rotation);
+                    SetLocalPosAndRot(resultTrs, prototype.position, prototype.rotation);
 
                     if (result.TryGetComponent<NetworkIdentity>(out var nid))
                         ApplyParentChange(nid, parent, prototype.path, false);
@@ -1025,11 +1063,11 @@ namespace PurrNet.Modules
             {
                 result.transform.SetParent(nid.defaultParent, false);
                 result.transform.SetSiblingIndex(prototype.defaultParentSiblingIndex.Value);
-                resultTrs.SetLocalPositionAndRotation(prototype.position, prototype.rotation);
+                SetLocalPosAndRot(resultTrs, prototype.position, prototype.rotation);
             }
             else
             {
-                resultTrs.SetLocalPositionAndRotation(prototype.position, prototype.rotation);
+                SetLocalPosAndRot(resultTrs, prototype.position, prototype.rotation);
             }
 
             if (shouldActivate && !result.activeSelf)

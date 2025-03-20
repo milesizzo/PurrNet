@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PurrNet.Logging;
+using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace PurrNet
@@ -33,12 +34,12 @@ namespace PurrNet
         /// <summary>
         /// Clears every instance in the handler.
         /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         public static void ClearAll()
         {
             _instances.Clear();
             NetworkManager = null;
         }
-
 
         /// <summary>
         /// Registers a instance of the given type, in order to use GetInstance later.

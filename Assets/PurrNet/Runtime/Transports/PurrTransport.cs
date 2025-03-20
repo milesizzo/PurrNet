@@ -487,8 +487,8 @@ namespace PurrNet.Transports
         {
             if (!_pollEventsInUpdate)
             {
-                _server.ProcessMessageQueue();
-                _client.ProcessMessageQueue();
+                _server?.ProcessMessageQueue();
+                _client?.ProcessMessageQueue();
             }
         }
 
@@ -496,8 +496,8 @@ namespace PurrNet.Transports
         {
             if (_pollEventsInUpdate)
             {
-                _server.ProcessMessageQueue();
-                _client.ProcessMessageQueue();
+                _server?.ProcessMessageQueue();
+                _client?.ProcessMessageQueue();
             }
         }
 

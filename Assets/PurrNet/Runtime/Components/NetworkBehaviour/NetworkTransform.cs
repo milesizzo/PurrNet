@@ -149,66 +149,6 @@ namespace PurrNet
             _controller = GetComponent<CharacterController>();
         }
 
-        protected override void OnEarlySpawn(bool asServer)
-        {
-            _currentData = GetCurrentTransformData();
-            _lastSentDelta = _currentData;
-        }
-
-        protected override void OnOwnerReconnected(PlayerID ownerId)
-        {
-            OnOwnerChanged(ownerId, ownerId, isServer);
-        }
-
-        protected override void OnOwnerChanged(PlayerID? oldOwner, PlayerID? newOwner, bool asServer)
-        {
-            if (!_ownerAuth)
-                return;
-
-            if (asServer)
-            {
-                if (newOwner.HasValue && newOwner != localPlayer)
-                    SendLatestState(newOwner.Value, _currentData);
-
-                if (oldOwner.HasValue && newOwner != oldOwner && oldOwner != localPlayer)
-                    SendLatestState(oldOwner.Value, _currentData);
-            }
-            else if (newOwner == localPlayer && !isServer)
-            {
-                _currentData = GetCurrentTransformData();
-                SendLatestStateToServer(_currentData);
-                _lastSentDelta = _currentData;
-            }
-        }
-
-        protected override void OnSpawned(bool asServer)
-        {
-            if (!networkManager.TryGetModule<NetworkTransformFactory>(asServer, out var factory))
-            {
-                PurrLogger.LogError("NetworkTransformFactory not found");
-                return;
-            }
-
-            if (!factory.TryGetModule(sceneId, out var ntModule))
-                return;
-
-            if (!asServer && !isServer && IsController(localPlayerForced, _ownerAuth, false))
-                SendLatestStateToServer(_currentData);
-
-            ntModule.Register(this);
-        }
-
-        protected override void OnDespawned(bool asServer)
-        {
-            if (!networkManager.TryGetModule<NetworkTransformFactory>(asServer, out var factory))
-                return;
-
-            if (!factory.TryGetModule(sceneId, out var ntModule))
-                return;
-
-            ntModule.Unregister(this);
-        }
-
         protected override void OnEarlySpawn()
         {
             _trs = transform;
@@ -229,6 +169,77 @@ namespace PurrNet
             if (syncScale)
                 _scale = new Interpolated<Vector3>(interpolateScale ? Vector3.Lerp : NoInterpolation, sendDelta,
                     _trs.localScale, _maxBufferSize, _minBufferSize);
+
+            _currentData = GetCurrentTransformData();
+            _lastReadData = _currentData;
+            _lastSentDelta = _currentData;
+        }
+
+        protected override void OnOwnerReconnected(PlayerID ownerId)
+        {
+            OnOwnerChanged(ownerId, ownerId, isServer);
+        }
+
+        protected override void OnOwnerChanged(PlayerID? oldOwner, PlayerID? newOwner, bool asServer)
+        {
+            if (!_wasOnSpawnedCalled)
+                return;
+
+            if (!_ownerAuth)
+                return;
+
+            if (asServer)
+            {
+                if (newOwner.HasValue && newOwner != localPlayer)
+                    SendLatestState(newOwner.Value, _currentData);
+
+                if (oldOwner.HasValue && newOwner != oldOwner && oldOwner != localPlayer)
+                    SendLatestState(oldOwner.Value, _currentData);
+            }
+            else if (newOwner == localPlayer && !isServer)
+            {
+                _currentData = GetCurrentTransformData();
+                SendLatestStateToServer(_currentData);
+                _lastSentDelta = _currentData;
+            }
+        }
+
+        private bool _wasOnSpawnedCalled;
+
+        protected override void OnSpawned(bool asServer)
+        {
+            _wasOnSpawnedCalled = true;
+
+            if (!networkManager.TryGetModule<NetworkTransformFactory>(asServer, out var factory))
+            {
+                PurrLogger.LogError("NetworkTransformFactory not found");
+                return;
+            }
+
+            if (!factory.TryGetModule(sceneId, out var ntModule))
+                return;
+
+            if (!asServer && !isServer && IsController(localPlayerForced, _ownerAuth, false))
+            {
+                _currentData = GetCurrentTransformData();
+                SendLatestStateToServer(_currentData);
+                _lastSentDelta = _currentData;
+            }
+
+            ntModule.Register(this);
+        }
+
+        protected override void OnDespawned(bool asServer)
+        {
+            _wasOnSpawnedCalled = false;
+
+            if (!networkManager.TryGetModule<NetworkTransformFactory>(asServer, out var factory))
+                return;
+
+            if (!factory.TryGetModule(sceneId, out var ntModule))
+                return;
+
+            ntModule.Unregister(this);
         }
 
         protected override void OnSpawned()

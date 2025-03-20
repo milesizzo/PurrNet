@@ -84,6 +84,13 @@ namespace PurrNet
         }
 
         /// <summary>
+        /// Called instantly when an observer is added.
+        /// Server only.
+        /// </summary>
+        /// <param name="player"></param>
+        public virtual void OnEarlyObserverAdded(PlayerID player) { }
+
+        /// <summary>
         /// Called when an observer is removed.
         /// Server only.
         /// </summary>

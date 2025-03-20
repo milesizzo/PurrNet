@@ -1,17 +1,15 @@
 {
-    "name": "PurrNet.Examples",
+    "name": "PurrNet.Issues.Denis",
     "rootNamespace": "",
     "references": [
-        "GUID:6e20f757a1bae164fa42750dd2b27dcb",
-        "GUID:f51ebe6a0ceec4240a699833d6309b23",
-        "GUID:324caed91501a9c47a04ebfd87b68794"
+        "GUID:6e20f757a1bae164fa42750dd2b27dcb"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
-    "autoReferenced": false,
+    "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false

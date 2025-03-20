@@ -71,7 +71,7 @@ namespace PurrNet.Modules
             _scenes.onPlayerLoadedScene += OnPlayerLoadedScene;
 
             _hierarchy.onIdentityRemoved += OnIdentityDespawned;
-            _hierarchy.onEarlyObserverAdded += OnPlayerObserverAdded;
+            _hierarchy.onObserverAdded += OnPlayerObserverAdded;
 
             _playersManager.onPlayerLeft += OnPlayerLeft;
 
@@ -87,7 +87,7 @@ namespace PurrNet.Modules
             _scenes.onPlayerLoadedScene -= OnPlayerLoadedScene;
 
             _hierarchy.onIdentityRemoved -= OnIdentityDespawned;
-            _hierarchy.onEarlyObserverAdded -= OnPlayerObserverAdded;
+            _hierarchy.onObserverAdded -= OnPlayerObserverAdded;
 
             _playersManager.onPlayerLeft -= OnPlayerLeft;
 

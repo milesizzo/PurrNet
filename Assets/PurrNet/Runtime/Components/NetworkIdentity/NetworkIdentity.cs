@@ -598,6 +598,15 @@ namespace PurrNet
         /// Server only.
         /// </summary>
         /// <param name="player">The observer player id</param>
+        protected virtual void OnEarlyObserverAdded(PlayerID player)
+        {
+        }
+
+        /// <summary>
+        /// Called when an observer is added.
+        /// Server only.
+        /// </summary>
+        /// <param name="player">The observer player id</param>
         protected virtual void OnObserverAdded(PlayerID player)
         {
         }
@@ -701,6 +710,7 @@ namespace PurrNet
             _clientTickManager = null;
             _ticker = null;
             isInPool = true;
+            _wasEarlySpawned = false;
         }
 
         private void OnChildDespawned(NetworkIdentity networkIdentity)
@@ -941,6 +951,8 @@ namespace PurrNet
         private int _spawnedCount;
         private bool _wasEarlySpawned;
 
+        public bool isFullySpawned => _spawnedCount > 0;
+
         internal void TriggerSpawnEvent(bool asServer)
         {
             InternalOnSpawn(asServer);
@@ -1036,6 +1048,13 @@ namespace PurrNet
 
             for (int i = 0; i < _externalModulesView.Count; i++)
                 _externalModulesView[i].OnOwnerReconnected(ownerId);
+        }
+
+        public void TriggerOnEarlyObserverAdded(PlayerID target)
+        {
+            OnEarlyObserverAdded(target);
+            for (int i = 0; i < _externalModulesView.Count; i++)
+                _externalModulesView[i].OnEarlyObserverAdded(target);
         }
 
         public void TriggerOnObserverAdded(PlayerID target)

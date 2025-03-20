@@ -5,21 +5,10 @@ namespace PurrNet
 {
     public sealed class NetworkOwnershipToggle : NetworkIdentity
     {
-        [Header("GameObjects to toggle when owner is set")]
-        [Tooltip("GameObjects to activate when the owner is set")]
-        [SerializeField]
-        private GameObject[] _toActivate;
-
-        [Tooltip("GameObjects to deactivate when the owner is set")] [SerializeField]
-        private GameObject[] _toDeactivate;
-
-        [Header("Components to toggle when owner is set")]
-        [Tooltip("Components to enable when the owner is set")]
-        [SerializeField]
-        private Behaviour[] _toEnable;
-
-        [Tooltip("Components to disable when the owner is set")] [SerializeField]
-        private Behaviour[] _toDisable;
+        [Tooltip("Components to toggle from the owner's perspective")]
+        [SerializeField] private OwnershipComponentToggle[] _components;
+        [Tooltip("GameObjects to toggle from the owner's perspective")]
+        [SerializeField] private OwnershipGameObjectToggle[] _gameObjects;
 
         private bool _lastOwner;
 
@@ -33,32 +22,41 @@ namespace PurrNet
         {
             _lastOwner = asOwner;
 
-            for (var i = 0; i < _toActivate.Length; i++)
+            for (var i = 0; i < _components.Length; i++)
             {
-                var go = _toActivate[i];
-                if (!go) continue;
-                go.SetActive(asOwner);
+                var target = _components[i].target;
+                if (!target) continue;
+
+                bool targetState = _components[i].activeAsOwner == asOwner;
+                SetComponentState(target, targetState);
             }
 
-            for (var i = 0; i < _toDeactivate.Length; i++)
+            for (var i = 0; i < _gameObjects.Length; i++)
             {
-                var go = _toDeactivate[i];
-                if (!go) continue;
-                go.SetActive(!asOwner);
-            }
+                var target = _gameObjects[i].target;
+                if (!target) continue;
 
-            for (var i = 0; i < _toEnable.Length; i++)
-            {
-                var comp = _toEnable[i];
-                if (!comp) continue;
-                comp.enabled = asOwner;
+                bool targetState = _gameObjects[i].activeAsOwner == asOwner;
+                target.SetActive(targetState);
             }
+        }
 
-            for (var i = 0; i < _toDisable.Length; i++)
+        private static void SetComponentState(Component target, bool targetState)
+        {
+            switch (target)
             {
-                var comp = _toDisable[i];
-                if (!comp) continue;
-                comp.enabled = !asOwner;
+                case Transform go:
+                    go.gameObject.SetActive(targetState);
+                    break;
+                case Behaviour behaviour:
+                    behaviour.enabled = targetState;
+                    break;
+                case Collider col:
+                    col.enabled = targetState;
+                    break;
+                case Renderer r:
+                    r.enabled = targetState;
+                    break;
             }
         }
 

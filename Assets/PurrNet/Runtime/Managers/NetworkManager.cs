@@ -371,8 +371,6 @@ namespace PurrNet
 
         public static void CallAllRegisters()
         {
-            // call all static functions with RegisterPackersAttribute on static classes
-
             var allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
             foreach (var assembly in allAssemblies)
@@ -393,18 +391,22 @@ namespace PurrNet
                         if (!method.IsStatic)
                             continue;
 
-                        var attributes = method.GetCustomAttributes(typeof(RegisterPackersAttribute), false);
-                        if (attributes.Length > 0)
+                        try
                         {
-                            try
+                            var attributes = method.GetCustomAttributes(false);
+                            for (var i = 0; i < attributes.Length; i++)
                             {
+                                var attribute = attributes[i];
+                                if (attribute.GetType() != typeof(RegisterPackersAttribute))
+                                    continue;
+
                                 method.Invoke(null, null);
+                                break;
                             }
-                            catch (Exception e)
-                            {
-                                Debug.LogError(e);
-                                Debug.LogError("Failed to call " + method.Name + " in " + type.Name);
-                            }
+                        }
+                        catch
+                        {
+                            // ignored
                         }
                     }
                 }
@@ -807,6 +809,7 @@ namespace PurrNet
             var networkCookies = new CookiesModule(_cookieScope, asServer);
             var authModule = new AuthModule(this, connBroadcaster, networkCookies);
             var playersManager = new PlayersManager(this, authModule, connBroadcaster);
+            authModule.SetPlayerModule(playersManager);
 
             if (asServer)
             {
@@ -903,7 +906,7 @@ namespace PurrNet
             modules.AddModule(hierarchyV2);
 
             var networkTransform =
-                new NetworkTransformFactory(scenesModule, playersBroadcast, this);
+                new NetworkTransformFactory(scenesModule, playersBroadcast, this, hierarchyV2);
             var colliderRollback = new ColliderRollbackFactory(tickManager, scenesModule);
 
             modules.AddModule(networkTransform);

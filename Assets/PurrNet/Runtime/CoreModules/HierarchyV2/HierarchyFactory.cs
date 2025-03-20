@@ -29,7 +29,7 @@ namespace PurrNet.Modules
 
         public event IdentityAction onIdentityRemoved;
 
-        public event ObserverAction onEarlyObserverAdded;
+        public event ObserverAction onObserverAdded;
 
         // public event ObserverAction onObserverAdded;
 
@@ -85,7 +85,7 @@ namespace PurrNet.Modules
         private void OnEarlyIdentityAdded(NetworkIdentity identity) => onEarlyIdentityAdded?.Invoke(identity);
 
         private void OnObserverAdded(PlayerID player, NetworkIdentity identity) =>
-            onEarlyObserverAdded?.Invoke(player, identity);
+            onObserverAdded?.Invoke(player, identity);
 
         private void OnIdentityAdded(NetworkIdentity identity) => onIdentityAdded?.Invoke(identity);
 
