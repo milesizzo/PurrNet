@@ -301,9 +301,9 @@ namespace PurrNet
         public void SendToScene<T>(SceneID sceneId, T data, Channel method = Channel.ReliableOrdered)
         {
             var broadcaster = GetModule<PlayersBroadcaster>(true);
-            var scenePlayers = GetModule<ScenePlayersModule>(true);
+            var scenes = GetModule<IScenesManager>(true);
 
-            if (scenePlayers.TryGetPlayersInScene(sceneId, out var playersInScene))
+            if (scenes.TryGetPlayersInScene(sceneId, out var playersInScene))
                 broadcaster.Send(playersInScene, data, method);
         }
 

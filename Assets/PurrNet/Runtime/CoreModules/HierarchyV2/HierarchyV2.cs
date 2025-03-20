@@ -17,7 +17,7 @@ namespace PurrNet.Modules
         private readonly bool _asServer;
         private readonly SceneID _sceneId;
         private readonly Scene _scene;
-        private readonly ScenePlayersModule _scenePlayers;
+        private readonly IScenesManager _scenes;
         private readonly PlayersManager _playersManager;
         private readonly VisilityV2 _visibility;
 
@@ -44,14 +44,14 @@ namespace PurrNet.Modules
         private bool _isPlayerReady;
 
         public HierarchyV2(NetworkManager manager, SceneID sceneId, Scene scene,
-            ScenePlayersModule players, PlayersManager playersManager, bool asServer)
+            IScenesManager scenes, PlayersManager playersManager, bool asServer)
         {
             _manager = manager;
             _sceneId = sceneId;
             _scene = scene;
-            _scenePlayers = players;
             _visibility = new VisilityV2(_manager);
             _asServer = asServer;
+            _scenes = scenes;
             _playersManager = playersManager;
 
             _scenePool = NetworkPoolManager.GetScenePool(scene, sceneId);
@@ -134,8 +134,8 @@ namespace PurrNet.Modules
         {
             PurrNetGameObjectUtils.onGameObjectCreated += OnGameObjectCreated;
             _visibility.visibilityChanged += OnVisibilityChanged;
-            _scenePlayers.onPrePlayerloadedScene += OnPlayerLoadedScene;
-            _scenePlayers.onPlayerUnloadedScene += OnPlayerUnloadedScene;
+            _scenes.onPrePlayerLoadedScene += OnPlayerLoadedScene;
+            _scenes.onPlayerUnloadedScene += OnPlayerUnloadedScene;
             _playersManager.onNetworkIDReceived += OnNetworkIDReceived;
 
             if (_playersManager.localPlayerId.HasValue)
@@ -153,8 +153,8 @@ namespace PurrNet.Modules
         {
             PurrNetGameObjectUtils.onGameObjectCreated -= OnGameObjectCreated;
             _visibility.visibilityChanged -= OnVisibilityChanged;
-            _scenePlayers.onPrePlayerloadedScene -= OnPlayerLoadedScene;
-            _scenePlayers.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
+            _scenes.onPrePlayerLoadedScene -= OnPlayerLoadedScene;
+            _scenes.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
             _playersManager.onLocalPlayerReceivedID -= OnPlayerReceivedID;
             _playersManager.onNetworkIDReceived -= OnNetworkIDReceived;
 
@@ -312,7 +312,7 @@ namespace PurrNet.Modules
             if (oldParent && parent != oldParent)
                 oldParent.RemoveDirectChild(first);
 
-            if (refreshVisibility && _asServer && _scenePlayers.TryGetPlayersInScene(_sceneId, out var players))
+            if (refreshVisibility && _asServer && _scenes.TryGetPlayersInScene(_sceneId, out var players))
             {
                 foreach (var player in players)
                     _visibility.RefreshVisibilityForGameObject(player, idTrs, parent);
@@ -372,7 +372,7 @@ namespace PurrNet.Modules
                 else _playersManager.SendToServer(packet);
             }
 
-            if (_asServer && _scenePlayers.TryGetPlayersInScene(_sceneId, out var players))
+            if (_asServer && _scenes.TryGetPlayersInScene(_sceneId, out var players))
             {
                 var trs = identity.transform;
                 foreach (var player in players)
@@ -395,7 +395,7 @@ namespace PurrNet.Modules
 
                     // if server, refresh visibility for all players in scene
                     if (count > 0 && list[0] && _asServer &&
-                        _scenePlayers.TryGetPlayersInScene(_sceneId, out var players))
+                        _scenes.TryGetPlayersInScene(_sceneId, out var players))
                     {
                         foreach (var playerInScene in players)
                             _visibility.RefreshVisibilityForGameObject(playerInScene, list[0].transform);
@@ -519,7 +519,7 @@ namespace PurrNet.Modules
 
         public void EvaluateAllVisibilities()
         {
-            if (_asServer && _scenePlayers.TryGetPlayersInScene(_sceneId, out var players))
+            if (_asServer && _scenes.TryGetPlayersInScene(_sceneId, out var players))
                 _visibility.EvaluateAll(players, _spawnedIdentities);
         }
 
@@ -553,7 +553,7 @@ namespace PurrNet.Modules
 
         public void EvaluateVisibility(Transform root)
         {
-            if (_asServer && _scenePlayers.TryGetPlayersInScene(_sceneId, out var players))
+            if (_asServer && _scenes.TryGetPlayersInScene(_sceneId, out var players))
             {
                 foreach (var player in players)
                     _visibility.RefreshVisibilityForGameObject(player, root);
@@ -562,7 +562,7 @@ namespace PurrNet.Modules
 
         public void EvaluateVisibility(PlayerID player, Transform root)
         {
-            if (_asServer && _scenePlayers.IsPlayerLoadedInScene(player, _sceneId))
+            if (_asServer && _scenes.IsPlayerLoadedInScene(player, _sceneId))
                 _visibility.RefreshVisibilityForGameObject(player, root);
         }
 
@@ -585,7 +585,7 @@ namespace PurrNet.Modules
                 {
                     using (prototype)
                     {
-                        if (_scenePlayers.IsPlayerLoadedInScene(player, _sceneId))
+                        if (_scenes.IsPlayerLoadedInScene(player, _sceneId))
                             SendSpawnPacket(player, prototype);
 
                         for (var i = 0; i < children.Count; i++)
@@ -615,7 +615,7 @@ namespace PurrNet.Modules
 
                 ListPool<NetworkIdentity>.Destroy(children);
 
-                if (_scenePlayers.IsPlayerLoadedInScene(player, _sceneId))
+                if (_scenes.IsPlayerLoadedInScene(player, _sceneId))
                     SendDespawnPacket(player, identity);
             }
         }
@@ -728,7 +728,7 @@ namespace PurrNet.Modules
             {
                 SendSpawnPacket(default, HierarchyPool.GetFullPrototype(gameObject.transform));
             }
-            else if (_scenePlayers.TryGetPlayersInScene(_sceneId, out var players))
+            else if (_scenes.TryGetPlayersInScene(_sceneId, out var players))
             {
                 foreach (var player in players)
                     _visibility.RefreshVisibilityForGameObject(player, gameObject.transform);

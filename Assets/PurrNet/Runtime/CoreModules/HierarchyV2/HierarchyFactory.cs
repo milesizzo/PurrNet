@@ -6,11 +6,9 @@ namespace PurrNet.Modules
 {
     public class HierarchyFactory : INetworkModule, IFixedUpdate, IPreFixedUpdate, ICleanup
     {
-        readonly IScenesModule _scenes;
+        readonly IScenesManager _scenes;
 
         readonly NetworkManager _manager;
-
-        readonly ScenePlayersModule _scenePlayersModule;
 
         readonly Dictionary<SceneID, HierarchyV2> _hierarchies = new();
 
@@ -18,12 +16,10 @@ namespace PurrNet.Modules
 
         readonly PlayersManager _playersManager;
 
-        public HierarchyFactory(NetworkManager manager, IScenesModule scenes, ScenePlayersModule scenePlayersModule,
-            PlayersManager playersManager)
+        public HierarchyFactory(NetworkManager manager, IScenesManager scenes, PlayersManager playersManager)
         {
             _manager = manager;
             _scenes = scenes;
-            _scenePlayersModule = scenePlayersModule;
             _playersManager = playersManager;
         }
 
@@ -39,13 +35,13 @@ namespace PurrNet.Modules
 
         public void Enable(bool asServer)
         {
-            foreach (var (id, sceneState) in _scenes.sceneStates)
+            foreach (var (sceneID, scene) in _scenes.scenes)
             {
-                if (sceneState.scene.isLoaded)
-                    OnPreSceneLoaded(id, asServer);
+                if (scene.isLoaded)
+                    OnPreSceneLoaded(sceneID, asServer);
             }
 
-            _scenes.onPreSceneLoaded += OnPreSceneLoaded;
+            _scenes.onSceneLoaded += OnPreSceneLoaded;
             _scenes.onSceneUnloaded += OnSceneUnloaded;
         }
 
@@ -54,27 +50,26 @@ namespace PurrNet.Modules
             for (var i = 0; i < _rawHierarchies.Count; i++)
                 _rawHierarchies[i].Disable();
 
-            _scenes.onPreSceneLoaded -= OnPreSceneLoaded;
+            _scenes.onSceneLoaded -= OnPreSceneLoaded;
             _scenes.onSceneUnloaded -= OnSceneUnloaded;
         }
 
-        private void OnPreSceneLoaded(SceneID scene, bool asServer)
+        private void OnPreSceneLoaded(SceneID sceneID, bool asServer)
         {
-            if (_hierarchies.ContainsKey(scene))
+            if (_hierarchies.ContainsKey(sceneID))
             {
                 PurrLogger.LogError(
-                    $"Hierarchy module for scene {scene} already exists; trying to create another one?");
+                    $"Hierarchy module for scene {sceneID} already exists; trying to create another one?");
                 return;
             }
 
-            if (!_scenes.sceneStates.TryGetValue(scene, out var sceneState))
+            if (!_scenes.TryGetScene(sceneID, out var scene))
             {
-                PurrLogger.LogError($"Scene {scene} doesn't exist; trying to create hierarchy module for it?");
+                PurrLogger.LogError($"Scene {sceneID} doesn't exist; trying to create hierarchy module for it?");
                 return;
             }
 
-            var hierarchy = new HierarchyV2(_manager, scene, sceneState.scene, _scenePlayersModule, _playersManager,
-                asServer);
+            var hierarchy = new HierarchyV2(_manager, sceneID, scene, _scenes, _playersManager, asServer);
 
             hierarchy.onEarlyIdentityAdded += OnEarlyIdentityAdded;
             hierarchy.onObserverAdded += OnObserverAdded;
@@ -84,7 +79,7 @@ namespace PurrNet.Modules
             hierarchy.Enable();
 
             _rawHierarchies.Add(hierarchy);
-            _hierarchies.Add(scene, hierarchy);
+            _hierarchies.Add(sceneID, hierarchy);
         }
 
         private void OnEarlyIdentityAdded(NetworkIdentity identity) => onEarlyIdentityAdded?.Invoke(identity);

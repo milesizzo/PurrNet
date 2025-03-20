@@ -4,23 +4,23 @@ namespace PurrNet
 {
     public readonly struct SceneID : IEquatable<SceneID>
     {
-        private ushort _id { get; }
+        private Guid _id { get; }
 
-        public ushort id => _id;
+        public Guid id => _id;
 
-        public SceneID(ushort id)
+        public SceneID(Guid id)
         {
             _id = id;
         }
 
         public override string ToString()
         {
-            return _id.ToString("000");
+            return _id.ToString("N");
         }
 
         public override int GetHashCode()
         {
-            return _id;
+            return _id.GetHashCode();
         }
 
         public bool Equals(SceneID other)
@@ -41,6 +41,11 @@ namespace PurrNet
         public static bool operator !=(SceneID a, SceneID b)
         {
             return a._id != b._id;
+        }
+
+        public static SceneID New()
+        {
+            return new SceneID(Guid.NewGuid());
         }
     }
 }

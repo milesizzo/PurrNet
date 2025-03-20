@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using PurrNet.Logging;
@@ -7,14 +6,6 @@ using UnityEngine.SceneManagement;
 
 namespace PurrNet.Modules
 {
-    public class UnityScenesModuleFactory : IScenesModuleFactory
-    {
-        public IScenesModule Create(NetworkManager manager, PlayersManager players)
-        {
-            return new UnityScenesModule(manager, players);
-        }
-    }
-
     public struct UnitySceneData
     {
         public int buildIndex;
@@ -33,36 +24,40 @@ namespace PurrNet.Modules
         public SceneID idToAssign;
     }
 
-    public class UnityScenesModule : ScenesModule
+    public class UnityScenesModule : INetworkModule
     {
-        private ushort _nextSceneID = 1;
+        private readonly NetworkManager _networkManager;
+        private readonly PlayersManager _playersManager;
+        private readonly ScenesManager _scenesManager;
+        private bool _asServer;
         private readonly List<PendingOperation> _pendingOperations = new List<PendingOperation>();
         private readonly Dictionary<SceneID, int> _sceneToBuildIndex = new Dictionary<SceneID, int>();
 
-        public UnityScenesModule(NetworkManager manager, PlayersManager players)
-            : base(manager, players)
+        public UnityScenesModule(NetworkManager networkManager, PlayersManager playersManager, ScenesManager scenesManager)
         {
+            _networkManager = networkManager;
+            _playersManager = playersManager;
+            _scenesManager = scenesManager;
         }
 
-        public override void Enable(bool asServer)
+        public void Enable(bool asServer)
         {
-            base.Enable(asServer);
+            _asServer = asServer;
             if (!asServer)
             {
-                players.Subscribe<UnitySceneDataBatch>(OnSceneDataBatch);
+                _playersManager.Subscribe<UnitySceneDataBatch>(OnSceneDataBatch);
             }
             SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
         }
 
-        public override void Disable(bool asServer)
+        public void Disable(bool asServer)
         {
-            base.Disable(asServer);
             SceneManager.sceneLoaded -= SceneManagerOnSceneLoaded;
         }
 
         private void OnSceneDataBatch(PlayerID player, UnitySceneDataBatch data, bool asServer)
         {
-            if (networkManager.isServer || asServer)
+            if (_networkManager.isServer || asServer)
             {
                 PurrLogger.LogError("Only clients can receive scene data");
                 return;
@@ -75,11 +70,11 @@ namespace PurrNet.Modules
             }
         }
 
-        protected override void OnPrePlayerJoined(PlayerID player, bool isReconnect, bool asServer)
+        private void OnPrePlayerJoined(PlayerID player, bool isReconnect, bool asServer)
         {
             if (asServer)
             {
-                players.Send(player, new UnitySceneDataBatch
+                _playersManager.Send(player, new UnitySceneDataBatch
                 {
                     scenes = _sceneToBuildIndex.Select(x => new UnitySceneData
                     {
@@ -88,7 +83,6 @@ namespace PurrNet.Modules
                     }).ToList()
                 });
             }
-            base.OnPrePlayerJoined(player, isReconnect, asServer);
         }
 
         private void SceneManagerOnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -97,18 +91,13 @@ namespace PurrNet.Modules
             {
                 var operation = _pendingOperations[i];
 
-                if (operation.buildIndex == scene.buildIndex && operation.settings.mode == mode)
+                if (operation.buildIndex == scene.buildIndex/* && operation.settings.mode == mode*/)
                 {
-                    AddScene(scene, operation.settings, operation.idToAssign);
+                    _scenesManager.AddScene(operation.idToAssign, operation.settings, scene);
                     _pendingOperations.RemoveAt(i);
                     break;
                 }
             }
-        }
-
-        protected override SceneID GenerateSceneID()
-        {
-            return new(_nextSceneID++);
         }
 
         private bool IsScenePending(SceneID sceneId)
@@ -123,51 +112,15 @@ namespace PurrNet.Modules
         }
 
         /// <summary>
-        /// Loads a scene asynchronously by its build index - Must be in build settings
-        /// </summary>
-        /// <param name="sceneIndex">Build index of the scene</param>
-        /// <param name="mode">What UnityEngine scene load mode to use</param>
-        public AsyncOperation LoadSceneAsync(int sceneIndex, LoadSceneMode mode = LoadSceneMode.Single)
-        {
-            var parameters = new LoadSceneParameters(mode);
-            return LoadSceneAsync(sceneIndex, parameters);
-        }
-
-        /// <summary>
         /// Loads a scene asynchronously by its name - Must be in build settings
         /// </summary>
         /// <param name="sceneName">The name of the scene to load</param>
-        /// <param name="mode">What UnityEngine scene load mode to use</param>
-        public AsyncOperation LoadSceneAsync(string sceneName, LoadSceneMode mode = LoadSceneMode.Single)
+        public AsyncOperation LoadSceneAsync(string sceneName)
         {
-            var idx = SceneNameToBuildIndex(sceneName);
-
-            if (idx == -1)
+            return LoadSceneAsync(sceneName, new PurrSceneSettings
             {
-                PurrLogger.LogError($"Scene {sceneName} not found in build settings");
-                return null;
-            }
-
-            var parameters = new LoadSceneParameters(mode);
-            return LoadSceneAsync(idx, parameters);
-        }
-
-        /// <summary>
-        /// Loads a scene asynchronously by its name - Must be in build settings
-        /// </summary>
-        /// <param name="sceneName">The name of the scene to load</param>
-        /// <param name="parameters">The UnityEngine LoadSceneParameters to use</param>
-        public AsyncOperation LoadSceneAsync(string sceneName, LoadSceneParameters parameters)
-        {
-            var idx = SceneNameToBuildIndex(sceneName);
-
-            if (idx == -1)
-            {
-                PurrLogger.LogError($"Scene {sceneName} not found in build settings");
-                return null;
-            }
-
-            return LoadSceneAsync(idx, parameters);
+                isPublic = true,
+            });
         }
 
         /// <summary>
@@ -177,36 +130,28 @@ namespace PurrNet.Modules
         /// <param name="settings">The PurrSceneSettings to use when loading the scene</param>
         public AsyncOperation LoadSceneAsync(string sceneName, PurrSceneSettings settings)
         {
-            var idx = SceneNameToBuildIndex(sceneName);
+            var buildIndex = SceneNameToBuildIndex(sceneName);
 
-            if (idx == -1)
+            if (buildIndex == -1)
             {
                 PurrLogger.LogError($"Scene {sceneName} not found in build settings");
                 return null;
             }
 
-            return LoadSceneAsync(idx, settings);
+            return LoadSceneAsync(buildIndex, settings);
         }
 
         /// <summary>
         /// Loads a scene asynchronously by its build index - Must be in build settings
         /// </summary>
-        /// <param name="sceneIndex">Build index of the scene</param>
+        /// <param name="buildIndex">Build index of the scene</param>
         /// <param name="parameters">The UnityEngine LoadSceneParameters to use</param>
         /// <returns></returns>
-        public AsyncOperation LoadSceneAsync(int sceneIndex, LoadSceneParameters parameters)
+        public AsyncOperation LoadSceneAsync(int buildIndex)
         {
-            if (!asServer)
+            return LoadSceneAsync(buildIndex, new PurrSceneSettings
             {
-                PurrLogger.LogError("Only server can load scenes; for now at least ;)");
-                return null;
-            }
-
-            return LoadSceneAsync(sceneIndex, new PurrSceneSettings
-            {
-                mode = parameters.loadSceneMode,
-                physicsMode = parameters.localPhysicsMode,
-                isPublic = true
+                isPublic = true,
             });
         }
 
@@ -218,23 +163,25 @@ namespace PurrNet.Modules
         /// <returns></returns>
         public AsyncOperation LoadSceneAsync(int buildIndex, PurrSceneSettings settings)
         {
-            var sceneID = PrepareSceneServer(settings);
-            if (!sceneID.HasValue)
+            if (!_asServer)
+            {
+                PurrLogger.LogError("Only server can load scenes; for now at least ;)");
                 return null;
+            }
 
-            var asyncOperation = SceneManager.LoadSceneAsync(buildIndex, new LoadSceneParameters(settings.mode, settings.physicsMode));
+            var asyncOperation = SceneManager.LoadSceneAsync(buildIndex);
             var pendingOperation = new PendingOperation
             {
                 buildIndex = buildIndex,
                 settings = settings,
-                idToAssign = GenerateSceneID(),
+                idToAssign = SceneID.New(),
             };
 
             _pendingOperations.Add(pendingOperation);
 
-            if (asServer && networkManager.isHost)
+            if (_asServer && _networkManager.isHost)
             {
-                var clientModule = networkManager.GetModule<ScenesModule>(false) as UnityScenesModule;
+                var clientModule = _networkManager.GetModule<UnityScenesModule>(false);
                 clientModule?._pendingOperations.Add(pendingOperation);
             }
 
@@ -284,68 +231,21 @@ namespace PurrNet.Modules
         /// <param name="options">The UnityEngine UnloadSceneOptions to use for the unloading</param>
         public AsyncOperation UnloadSceneAsync(Scene scene, UnloadSceneOptions options = UnloadSceneOptions.None)
         {
-            if (!asServer)
+            if (!_asServer)
             {
                 PurrLogger.LogError("Only server can unload scenes; for now at least ;)");
                 return null;
             }
 
-            if (networkManager.gameObject.scene == scene)
+            if (_networkManager.gameObject.scene == scene)
             {
                 PurrLogger.LogError("Can't unload the network manager scene");
                 return null;
             }
 
-            if (!TryGetSceneID(scene, out var sceneID))
-            {
-                PurrLogger.LogError($"Scene {scene.name} not found in scenes list");
-                return null;
-            }
-
-            RemoveScene(scene, options);
+            _scenesManager.RemoveScene(scene);
 
             return SceneManager.UnloadSceneAsync(scene, options);
-        }
-
-        protected override bool TryLoadScene(SceneID sceneID, PurrSceneSettings settings)
-        {
-            if (!_sceneToBuildIndex.TryGetValue(sceneID, out var buildIndex))
-            {
-                PurrLogger.LogError($"Scene with ID {sceneID} not found in build settings");
-                return false;
-            }
-            try
-            {
-                SceneManager.LoadSceneAsync(buildIndex, settings.GetLoadSceneParameters());
-            }
-            catch (Exception e)
-            {
-                PurrLogger.LogError($"Error loading scene: {e}");
-                return false;
-            }
-            _pendingOperations.Add(new PendingOperation
-            {
-                buildIndex = buildIndex,
-                settings = settings,
-                idToAssign = sceneID,
-            });
-            return true;
-        }
-
-        protected override bool TryUnloadScene(SceneID sceneID, UnloadSceneOptions options)
-        {
-            // if the scene is pending, don't do anything for now
-            if (IsScenePending(sceneID)) return false;
-
-            if (!TryGetSceneState(sceneID, out var sceneState))
-            {
-                PurrLogger.LogError($"Couldn't find scene with index {sceneID} to unload");
-                return false;
-            }
-
-            SceneManager.UnloadSceneAsync(sceneState.scene, options);
-            RemoveScene(sceneState.scene);
-            return true;
         }
 
         private static int SceneNameToBuildIndex(string name)
@@ -366,11 +266,11 @@ namespace PurrNet.Modules
             return -1;
         }
 
-        public override bool Cleanup()
+        public bool Cleanup()
         {
             if (_pendingOperations.Count > 0)
                 return false;
-            return base.Cleanup();
+            return true;
         }
     }
 }

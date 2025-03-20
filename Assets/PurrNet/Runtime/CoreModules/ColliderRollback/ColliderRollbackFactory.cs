@@ -4,16 +4,16 @@ namespace PurrNet.Modules
     {
         readonly TickManager _tick;
 
-        public ColliderRollbackFactory(TickManager tick, IScenesModule scenes)
+        public ColliderRollbackFactory(TickManager tick, IScenesManager scenes)
             : base(scenes)
         {
             _tick = tick;
         }
 
-        protected override RollbackModule CreateModule(SceneID scene, bool asServer)
+        protected override RollbackModule CreateModule(SceneID sceneID, bool asServer)
         {
-            if (scenes.sceneStates.TryGetValue(scene, out var state))
-                return new RollbackModule(_tick, state.scene);
+            if (scenes.TryGetScene(sceneID, out var scene))
+                return new RollbackModule(_tick, scene);
             return new RollbackModule(_tick, default);
         }
 

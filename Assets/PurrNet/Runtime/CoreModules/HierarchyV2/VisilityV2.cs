@@ -139,7 +139,7 @@ namespace PurrNet.Modules
                 visibilityChanged?.Invoke(player, transform, isVisible);
         }
 
-        public void EvaluateAll(IReadonlyHashSet<PlayerID> players, List<NetworkIdentity> identities)
+        public void EvaluateAll(IReadOnlyHashSet<PlayerID> players, List<NetworkIdentity> identities)
         {
             var hash = HashSetPool<NetworkIdentity>.Instantiate();
 

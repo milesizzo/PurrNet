@@ -106,8 +106,8 @@ namespace PurrNet.Modules
                 switch (action.type)
                 {
                     case SceneActionType.Load:
-                        if (action.loadSceneAction.settings.mode == LoadSceneMode.Single)
-                            _sceneIds.Clear();
+                        // if (action.loadSceneAction.settings.mode == LoadSceneMode.Single)
+                        //     _sceneIds.Clear();
                         _sceneIds.Add(action.loadSceneAction.sceneID);
                         break;
                     case SceneActionType.Unload:

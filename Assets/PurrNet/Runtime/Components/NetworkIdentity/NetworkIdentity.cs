@@ -316,7 +316,7 @@ namespace PurrNet
 
         private readonly PurrHashSet<PlayerID> _observers = new PurrHashSet<PlayerID>(4);
 
-        public IReadonlyHashSet<PlayerID> observers => _observers;
+        public IReadOnlyHashSet<PlayerID> observers => _observers;
 
         [UsedImplicitly]
         public void QueueOnSpawned(Action action)
@@ -416,14 +416,14 @@ namespace PurrNet
                     players.onPlayerLeft += events.OnPlayerDisconnected;
                 }
 
-                if (networkManager.TryGetModule<ScenePlayersModule>(asServer, out var scenePlayers))
+                if (networkManager.TryGetModule<IScenesManager>(asServer, out var scenes))
                 {
                     // ReSharper disable once SuspiciousTypeConversion.Global
                     if (this is IServerSceneEvents sceneEvents)
                     {
                         _serverSceneEvents = sceneEvents;
-                        scenePlayers.onPlayerLoadedScene += OnServerJoinedScene;
-                        scenePlayers.onPlayerUnloadedScene += OnServerLeftScene;
+                        scenes.onPlayerLoadedScene += OnServerJoinedScene;
+                        scenes.onPlayerUnloadedScene += OnServerLeftScene;
                     }
                 }
             }
@@ -454,12 +454,12 @@ namespace PurrNet
                 players.onPlayerLeft -= events.OnPlayerDisconnected;
             }
 
-            if (!networkManager.TryGetModule<ScenePlayersModule>(asServer, out var scenePlayers)) return;
+            if (!networkManager.TryGetModule<IScenesManager>(asServer, out var scenes)) return;
 
             if (_serverSceneEvents == null) return;
 
-            scenePlayers.onPlayerLoadedScene -= OnServerJoinedScene;
-            scenePlayers.onPlayerUnloadedScene -= OnServerLeftScene;
+            scenes.onPlayerLoadedScene -= OnServerJoinedScene;
+            scenes.onPlayerUnloadedScene -= OnServerLeftScene;
         }
 
         void OnServerJoinedScene(PlayerID player, SceneID scene, bool asServer)

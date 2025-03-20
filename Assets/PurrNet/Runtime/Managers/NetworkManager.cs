@@ -151,8 +151,6 @@ namespace PurrNet
         /// </summary>
         public IPrefabProvider prefabProvider { get; private set; }
 
-        public IScenesModuleFactory scenesModuleFactory { get; private set; }
-
         /// <summary>
         /// The visibility rules of the network manager.
         /// </summary>
@@ -335,17 +333,6 @@ namespace PurrNet
             }
 
             prefabProvider = provider;
-        }
-
-        public void SetScenesModuleFactory(IScenesModuleFactory factory)
-        {
-            if (!isOffline)
-            {
-                PurrLogger.LogError("Failed to update scenes module factory since a connection is active.");
-                return;
-            }
-
-            scenesModuleFactory = factory;
         }
 
         /// <summary>
@@ -653,7 +640,7 @@ namespace PurrNet
         /// Defaults to the server scene module if the server is active.
         /// Otherwise it defaults to the client scene module.
         /// </summary>
-        public IScenesModule sceneModule => _serverSceneModule ?? _clientSceneModule;
+        public ScenesManager sceneModule => _serverSceneModule ?? _clientSceneModule;
 
         /// <summary>
         /// The players manager of the network manager.
@@ -677,13 +664,6 @@ namespace PurrNet
         public PlayersBroadcaster broadcastModule => _serverPlayersBroadcast ?? _clientPlayersBroadcast;
 
         /// <summary>
-        /// The scene players module of the network manager.
-        /// Defaults to the server scene players module if the server is active.
-        /// Otherwise it defaults to the client scene players module.
-        /// </summary>
-        public ScenePlayersModule scenePlayersModule => _serverScenePlayersModule ?? _clientScenePlayersModule;
-
-        /// <summary>
         /// The local player of the network manager.
         /// If the local player is not set, this will return the default value of the player id.
         /// </summary>
@@ -691,8 +671,8 @@ namespace PurrNet
 
         public AuthenticationLayer authenticator => _authenticator;
 
-        private IScenesModule _clientSceneModule;
-        private IScenesModule _serverSceneModule;
+        private ScenesManager _clientSceneModule;
+        private ScenesManager _serverSceneModule;
 
         private PlayersManager _clientPlayersManager;
         private PlayersManager _serverPlayersManager;
@@ -702,9 +682,6 @@ namespace PurrNet
 
         private PlayersBroadcaster _clientPlayersBroadcast;
         private PlayersBroadcaster _serverPlayersBroadcast;
-
-        private ScenePlayersModule _clientScenePlayersModule;
-        private ScenePlayersModule _serverScenePlayersModule;
 
         public delegate void OnTickDelegate(bool asServer);
 
@@ -868,50 +845,43 @@ namespace PurrNet
                 _serverPlayersBroadcast = playersBroadcast;
             else _clientPlayersBroadcast = playersBroadcast;
 
-            var scenesModule = (scenesModuleFactory ?? new UnityScenesModuleFactory()).Create(this, playersManager);
-
-            if (asServer)
-                _serverSceneModule = scenesModule;
-            else _clientSceneModule = scenesModule;
-
-            var scenePlayers = new ScenePlayersModule(this, scenesModule, playersManager);
+            var scenesModule = new ScenesManager(this, playersManager);
 
             if (asServer)
             {
-                if (_serverScenePlayersModule != null)
+                if (_serverSceneModule != null)
                 {
-                    _serverScenePlayersModule.onPlayerJoinedScene -= OnPlayerJoinedScene;
-                    _serverScenePlayersModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
-                    _serverScenePlayersModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
-                    _serverScenePlayersModule.onPlayerLeftScene -= OnPlayerLeftScene;
+                    _serverSceneModule.onPlayerJoinedScene -= OnPlayerJoinedScene;
+                    _serverSceneModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
+                    _serverSceneModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
+                    _serverSceneModule.onPlayerLeftScene -= OnPlayerLeftScene;
                 }
 
-                _serverScenePlayersModule = scenePlayers;
+                _serverSceneModule = scenesModule;
 
-                _serverScenePlayersModule.onPlayerJoinedScene += OnPlayerJoinedScene;
-                _serverScenePlayersModule.onPlayerLoadedScene += OnPlayerLoadedScene;
-                _serverScenePlayersModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
-                _serverScenePlayersModule.onPlayerLeftScene += OnPlayerLeftScene;
+                _serverSceneModule.onPlayerJoinedScene += OnPlayerJoinedScene;
+                _serverSceneModule.onPlayerLoadedScene += OnPlayerLoadedScene;
+                _serverSceneModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
+                _serverSceneModule.onPlayerLeftScene += OnPlayerLeftScene;
             }
             else
             {
-                if (_clientScenePlayersModule != null)
+                if (_clientSceneModule != null)
                 {
-                    _clientScenePlayersModule.onPlayerJoinedScene -= OnPlayerJoinedScene;
-                    _clientScenePlayersModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
-                    _clientScenePlayersModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
-                    _clientScenePlayersModule.onPlayerLeftScene -= OnPlayerLeftScene;
+                    _clientSceneModule.onPlayerJoinedScene -= OnPlayerJoinedScene;
+                    _clientSceneModule.onPlayerLoadedScene -= OnPlayerLoadedScene;
+                    _clientSceneModule.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
+                    _clientSceneModule.onPlayerLeftScene -= OnPlayerLeftScene;
                 }
 
-                _clientScenePlayersModule = scenePlayers;
+                _clientSceneModule = sceneModule;
 
-                _clientScenePlayersModule.onPlayerJoinedScene += OnPlayerJoinedScene;
-                _clientScenePlayersModule.onPlayerLoadedScene += OnPlayerLoadedScene;
-                _clientScenePlayersModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
-                _clientScenePlayersModule.onPlayerLeftScene += OnPlayerLeftScene;
+                _clientSceneModule.onPlayerJoinedScene += OnPlayerJoinedScene;
+                _clientSceneModule.onPlayerLoadedScene += OnPlayerLoadedScene;
+                _clientSceneModule.onPlayerUnloadedScene += OnPlayerUnloadedScene;
+                _clientSceneModule.onPlayerLeftScene += OnPlayerLeftScene;
             }
 
-            scenesModule.SetScenePlayers(scenePlayers);
             playersManager.SetBroadcaster(playersBroadcast);
 
             modules.AddModule(playersManager);
@@ -922,10 +892,9 @@ namespace PurrNet
             modules.AddModule(networkCookies);
 
             modules.AddModule(scenesModule);
-            modules.AddModule(scenePlayers);
 
-            var hierarchyV2 = new HierarchyFactory(this, scenesModule, scenePlayers, playersManager);
-            var ownershipModule = new GlobalOwnershipModule(hierarchyV2, playersManager, scenePlayers, scenesModule);
+            var hierarchyV2 = new HierarchyFactory(this, scenesModule, playersManager);
+            var ownershipModule = new GlobalOwnershipModule(hierarchyV2, playersManager, scenesModule);
             var rpcModule = new RPCModule(this, playersManager, hierarchyV2, ownershipModule, scenesModule);
 
             modules.AddModule(ownershipModule);
@@ -934,7 +903,7 @@ namespace PurrNet
             modules.AddModule(hierarchyV2);
 
             var networkTransform =
-                new NetworkTransformFactory(scenesModule, scenePlayers, playersBroadcast, this);
+                new NetworkTransformFactory(scenesModule, playersBroadcast, this);
             var colliderRollback = new ColliderRollbackFactory(tickManager, scenesModule);
 
             modules.AddModule(networkTransform);
@@ -1099,14 +1068,7 @@ namespace PurrNet
         /// <returns>Whether the scene was found.</returns>
         public bool TryGetScene(SceneID sceneID, out Scene scene)
         {
-            if (sceneModule.sceneStates.TryGetValue(sceneID, out var state))
-            {
-                scene = state.scene;
-                return true;
-            }
-
-            scene = default;
-            return false;
+            return sceneModule.TryGetScene(sceneID, out scene);
         }
 
         /// <summary>
@@ -1117,26 +1079,7 @@ namespace PurrNet
         /// <returns></returns>
         public bool TryGetPlayerScenes(PlayerID playerId, out SceneID[] scenes)
         {
-            scenes = null;
-
-            if (scenePlayersModule == null || playerId == default)
-                return false;
-
-            if (scenePlayersModule.TryGetScenesForPlayer(playerId, out scenes))
-                return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// Tries to get the scene state of the given scene ID.
-        /// </summary>
-        /// <param name="sceneID">The scene ID to get the state of.</param>
-        /// <param name="state">The state if found.</param>
-        /// <returns>Whether the state was found.</returns>
-        public bool TryGetSceneState(SceneID sceneID, out SceneState state)
-        {
-            return sceneModule.TryGetSceneState(sceneID, out state);
+            return sceneModule.TryGetPlayerScenes(playerId, out scenes);
         }
 
         /// <summary>

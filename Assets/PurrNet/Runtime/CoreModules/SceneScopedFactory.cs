@@ -5,14 +5,14 @@ namespace PurrNet.Modules
 {
     public abstract class SceneScopedFactory<T> : INetworkModule where T : INetworkModule
     {
-        protected readonly IScenesModule scenes;
+        protected readonly IScenesManager scenes;
 
         protected readonly List<T> modules = new();
         readonly Dictionary<SceneID, T> _modules = new();
 
         protected bool asServer;
 
-        protected SceneScopedFactory(IScenesModule scenes)
+        protected SceneScopedFactory(IScenesManager scenes)
         {
             this.scenes = scenes;
         }
@@ -21,13 +21,13 @@ namespace PurrNet.Modules
         {
             this.asServer = asServer;
 
-            foreach (var (id, sceneState) in scenes.sceneStates)
+            foreach (var (sceneID, scene) in scenes.scenes)
             {
-                if (sceneState.scene.isLoaded)
-                    OnPreSceneLoaded(id, asServer);
+                if (scene.isLoaded)
+                    OnPreSceneLoaded(sceneID, asServer);
             }
 
-            scenes.onPreSceneLoaded += OnPreSceneLoaded;
+            scenes.onSceneLoaded += OnPreSceneLoaded;
             scenes.onSceneUnloaded += OnSceneUnloaded;
         }
 
@@ -36,7 +36,7 @@ namespace PurrNet.Modules
             for (var i = 0; i < modules.Count; i++)
                 modules[i].Disable(asServer);
 
-            scenes.onPreSceneLoaded -= OnPreSceneLoaded;
+            scenes.onSceneLoaded -= OnPreSceneLoaded;
             scenes.onSceneUnloaded -= OnSceneUnloaded;
         }
 

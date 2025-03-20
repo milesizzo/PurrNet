@@ -5,32 +5,30 @@ namespace PurrNet.Modules
 {
     public class NetworkTransformFactory : INetworkModule, IPostFixedUpdate
     {
-        readonly IScenesModule _scenes;
-        readonly ScenePlayersModule _scenePlayers;
+        readonly IScenesManager _scenes;
         readonly PlayersBroadcaster _broadcaster;
         readonly NetworkManager _manager;
 
         readonly List<NetworkTransformModule> _rawModules = new();
         readonly Dictionary<SceneID, NetworkTransformModule> _modules = new();
 
-        public NetworkTransformFactory(IScenesModule scenes, ScenePlayersModule scenePlayers,
-            PlayersBroadcaster broadcaster, NetworkManager manager)
+        public NetworkTransformFactory(IScenesManager scenes, PlayersBroadcaster broadcaster,
+            NetworkManager manager)
         {
             _scenes = scenes;
-            _scenePlayers = scenePlayers;
             _broadcaster = broadcaster;
             _manager = manager;
         }
 
         public void Enable(bool asServer)
         {
-            foreach (var (id, sceneState) in _scenes.sceneStates)
+            foreach (var (sceneID, scene) in _scenes.scenes)
             {
-                if (sceneState.scene.isLoaded)
-                    OnPreSceneLoaded(id, asServer);
+                if (scene.isLoaded)
+                    OnPreSceneLoaded(sceneID, asServer);
             }
 
-            _scenes.onPreSceneLoaded += OnPreSceneLoaded;
+            _scenes.onSceneLoaded += OnPreSceneLoaded;
             _scenes.onSceneUnloaded += OnSceneUnloaded;
         }
 
@@ -39,7 +37,7 @@ namespace PurrNet.Modules
             for (var i = 0; i < _rawModules.Count; i++)
                 _rawModules[i].Disable(asServer);
 
-            _scenes.onPreSceneLoaded -= OnPreSceneLoaded;
+            _scenes.onSceneLoaded -= OnPreSceneLoaded;
             _scenes.onSceneUnloaded -= OnSceneUnloaded;
         }
 
@@ -52,7 +50,7 @@ namespace PurrNet.Modules
                 return;
             }
 
-            var hierarchy = new NetworkTransformModule(_manager, _broadcaster, _scenePlayers, scene);
+            var hierarchy = new NetworkTransformModule(_manager, _broadcaster, _scenes, scene);
 
             hierarchy.Enable(asServer);
 

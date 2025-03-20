@@ -41,41 +41,37 @@ namespace PurrNet.Modules
     public class GlobalOwnershipModule : INetworkModule, IFixedUpdate, IPreFixedUpdate
     {
         readonly PlayersManager _playersManager;
-        readonly ScenePlayersModule _scenePlayers;
         readonly HierarchyFactory _hierarchy;
 
-        readonly IScenesModule _scenes;
+        readonly IScenesManager _scenes;
         readonly Dictionary<SceneID, SceneOwnership> _sceneOwnerships = new Dictionary<SceneID, SceneOwnership>();
 
         private bool _asServer;
 
-        public GlobalOwnershipModule(HierarchyFactory hierarchy,
-            PlayersManager players, ScenePlayersModule scenePlayers, IScenesModule scenes)
+        public GlobalOwnershipModule(HierarchyFactory hierarchy, PlayersManager players, IScenesManager scenes)
         {
             _hierarchy = hierarchy;
             _scenes = scenes;
             _playersManager = players;
-            _scenePlayers = scenePlayers;
         }
 
         public void Enable(bool asServer)
         {
             _asServer = asServer;
 
-            foreach (var (id, sceneState) in _scenes.sceneStates)
+            foreach (var (sceneID, scene) in _scenes.scenes)
             {
-                if (sceneState.scene.isLoaded)
-                    OnSceneLoaded(id, asServer);
+                if (scene.isLoaded)
+                    OnSceneLoaded(sceneID, asServer);
             }
 
-            _scenes.onPreSceneLoaded += OnSceneLoaded;
+            _scenes.onSceneLoaded += OnSceneLoaded;
             _scenes.onSceneUnloaded += OnSceneUnloaded;
+            _scenes.onPlayerUnloadedScene += OnPlayerUnloadedScene;
+            _scenes.onPlayerLoadedScene += OnPlayerLoadedScene;
 
             _hierarchy.onIdentityRemoved += OnIdentityDespawned;
             _hierarchy.onEarlyObserverAdded += OnPlayerObserverAdded;
-
-            _scenePlayers.onPlayerUnloadedScene += OnPlayerUnloadedScene;
-            _scenePlayers.onPlayerLoadedScene += OnPlayerLoadedScene;
 
             _playersManager.onPlayerLeft += OnPlayerLeft;
 
@@ -85,14 +81,13 @@ namespace PurrNet.Modules
 
         public void Disable(bool asServer)
         {
-            _scenes.onPreSceneLoaded -= OnSceneLoaded;
+            _scenes.onSceneLoaded -= OnSceneLoaded;
             _scenes.onSceneUnloaded -= OnSceneUnloaded;
+            _scenes.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
+            _scenes.onPlayerLoadedScene -= OnPlayerLoadedScene;
 
             _hierarchy.onIdentityRemoved -= OnIdentityDespawned;
             _hierarchy.onEarlyObserverAdded -= OnPlayerObserverAdded;
-
-            _scenePlayers.onPlayerUnloadedScene -= OnPlayerUnloadedScene;
-            _scenePlayers.onPlayerLoadedScene -= OnPlayerLoadedScene;
 
             _playersManager.onPlayerLeft -= OnPlayerLeft;
 
@@ -424,7 +419,7 @@ namespace PurrNet.Modules
 
             if (_asServer)
             {
-                if (_scenePlayers.TryGetPlayersInScene(nid.sceneId, out var players))
+                if (_scenes.TryGetPlayersInScene(nid.sceneId, out var players))
                     _playersManager.Send(players, data);
             }
             else
@@ -500,7 +495,7 @@ namespace PurrNet.Modules
 
             if (_asServer)
             {
-                if (_scenePlayers.TryGetPlayersInScene(id.sceneId, out var players))
+                if (_scenes.TryGetPlayersInScene(id.sceneId, out var players))
                     _playersManager.Send(players, data);
             }
             else _playersManager.SendToServer(data);
@@ -582,7 +577,7 @@ namespace PurrNet.Modules
 
             if (_asServer)
             {
-                if (_scenePlayers.TryGetPlayersInScene(id.sceneId, out var players))
+                if (_scenes.TryGetPlayersInScene(id.sceneId, out var players))
                     _playersManager.Send(players, data);
             }
             else _playersManager.SendToServer(data);

@@ -14,12 +14,12 @@ namespace PurrNet.Modules
     {
         readonly HierarchyFactory _hierarchyModule;
         readonly PlayersManager _playersManager;
-        readonly IScenesModule _scenes;
+        readonly IScenesManager _scenes;
         readonly GlobalOwnershipModule _ownership;
         readonly NetworkManager _manager;
 
         public RPCModule(NetworkManager manager, PlayersManager playersManager, HierarchyFactory hierarchyModule,
-            GlobalOwnershipModule ownerships, IScenesModule scenes)
+            GlobalOwnershipModule ownerships, IScenesManager scenes)
         {
             _manager = manager;
             _playersManager = playersManager;

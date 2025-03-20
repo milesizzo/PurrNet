@@ -21,13 +21,13 @@ namespace PurrNet.Collections
 
     /// <summary>Represents hash set which don't allow for items addition.</summary>
     /// <typeparam name="T">Type of items int he set.</typeparam>
-    public interface IReadonlyHashSet<T> : IReadOnlyCollection<T>
+    public interface IReadOnlyHashSet<T> : IReadOnlyCollection<T>
     {
         /// <summary>Returns true if the set contains given item.</summary>
         public bool Contains(T i);
     }
 
-    public class PurrHashSet<T> : ISet<T>, IReadonlyHashSet<T>
+    public class PurrHashSet<T> : ISet<T>, IReadOnlyHashSet<T>
     {
         /// <inheritdoc cref="ICollection{T}.Count" />
         public int Count => set.Count;

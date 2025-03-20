@@ -39,7 +39,7 @@ namespace PurrNet
 
         public override void Subscribe(NetworkManager manager, bool asServer)
         {
-            if (!manager.TryGetModule<ScenesModule>(asServer, out var scenesModule))
+            if (!manager.TryGetModule<ScenesManager>(asServer, out var scenesModule))
                 return;
 
             if (!scenesModule.TryGetSceneID(gameObject.scene, out var sceneID))

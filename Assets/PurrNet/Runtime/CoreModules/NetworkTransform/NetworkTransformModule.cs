@@ -19,17 +19,17 @@ namespace PurrNet.Modules
     public class NetworkTransformModule : INetworkModule, IFixedUpdate
     {
         private readonly List<NetworkTransform> _networkTransforms = new();
-        private readonly ScenePlayersModule _scenePlayers;
+        private readonly IScenesManager _scenes;
         private readonly PlayersBroadcaster _broadcaster;
         private readonly NetworkManager _manager;
         private readonly SceneID _scene;
         private bool _asServer;
 
         public NetworkTransformModule(NetworkManager manager, PlayersBroadcaster broadcaster,
-            ScenePlayersModule scenePlayers, SceneID scene)
+            IScenesManager scenes, SceneID scene)
         {
             _manager = manager;
-            _scenePlayers = scenePlayers;
+            _scenes = scenes;
             _broadcaster = broadcaster;
             _scene = scene;
         }
@@ -158,7 +158,7 @@ namespace PurrNet.Modules
                 if (PrepareDeltaState(packer, PlayerID.Server) && packer.positionInBits > 0)
                     _broadcaster.SendToServer(new NetworkTransformDelta(_scene, packer));
             }
-            else if (_scenePlayers.TryGetPlayersInScene(_scene, out var players))
+            else if (_scenes.TryGetPlayersInScene(_scene, out var players))
             {
                 foreach (var player in players)
                 {

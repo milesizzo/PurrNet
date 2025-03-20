@@ -7,14 +7,14 @@ namespace PurrNet.Packing
         [UsedByIL]
         public static void Write(BitPacker packer, SceneID value)
         {
-            Packer<PackedUShort>.Write(packer, new PackedUShort(value.id));
+            packer.Write(value.id);
         }
 
         [UsedByIL]
         public static void Read(BitPacker packer, ref SceneID value)
         {
-            PackedUShort id = default;
-            Packer<PackedUShort>.Read(packer, ref id);
+            System.Guid id = default;
+            packer.Read(ref id);
             value = new SceneID(id);
         }
 
